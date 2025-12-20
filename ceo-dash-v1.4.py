@@ -7,19 +7,19 @@ from datetime import date
 def get_gsheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     
-    # Check for secrets (Cloud) or local file
     if "gcp_service_account" in st.secrets:
         creds_dict = dict(st.secrets["gcp_service_account"])
-        # Fix for private key newline characters in TOML
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     else:
-        # Fallback for local testing - ensure your json file is in the same folder!
         creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
         
     client = gspread.authorize(creds)
-    # Ensure this matches your Google Sheet name EXACTLY
-    return client.open("Hungerford_Holdings_Data").sheet1
+    
+    # --- CHANGE THIS LINE ---
+    # Replace the string below with your actual Spreadsheet ID from the URL
+    SPREADSHEET_ID = "PASTE_YOUR_LONG_ID_HERE" 
+    return client.open_by_key(1wZSAKq283Q1xf9FAeMBIw403lpavRRAVLKNntc950Og).sheet1
 
 def load_game_data():
     try:
@@ -88,3 +88,4 @@ with t5:
     if st.button("📖 Read Economist"): update_stat('xp', 20)
     if st.button("🐎 Watch Slow Horses"): update_stat('xp', 10)
     if st.button("⚽ Sunday Football"): update_stat('xp', 40)
+
