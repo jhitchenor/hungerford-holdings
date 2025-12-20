@@ -18,8 +18,8 @@ def get_gsheet():
     
     # --- CHANGE THIS LINE ---
     # Replace the string below with your actual Spreadsheet ID from the URL
-    SPREADSHEET_ID = "PASTE_YOUR_LONG_ID_HERE" 
-    return client.open_by_key(1wZSAKq283Q1xf9FAeMBIw403lpavRRAVLKNntc950Og).sheet1
+    SPREADSHEET_ID = "1wZSAKq283Q1xf9FAeMBIw403lpavRRAVLKNntc950Og" 
+    return client.open_by_key(SPREADSHEET_ID).sheet1
 
 def load_game_data():
     try:
@@ -88,4 +88,5 @@ with t5:
     if st.button("📖 Read Economist"): update_stat('xp', 20)
     if st.button("🐎 Watch Slow Horses"): update_stat('xp', 10)
     if st.button("⚽ Sunday Football"): update_stat('xp', 40)
+
 
