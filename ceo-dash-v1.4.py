@@ -1,25 +1,38 @@
 import streamlit as st
-import json
-import os
-from datetime import datetime, date
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from datetime import date
 
-SAVE_FILE = "ceo_save_game.json"
+# --- GOOGLE SHEETS CONNECTION ---
+def get_gsheet():
+    # In Streamlit Cloud, we put the JSON content in "Secrets"
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    
+    # Check if we are local or in the cloud
+    if "gcp_service_account" in st.secrets:
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    else:
+        # Locally, it looks for your downloaded JSON
+        creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
+        
+    client = gspread.authorize(creds)
+    return client.open("Hungerford_Holdings_Data").sheet1
 
-# --- CORE ENGINE ---
 def load_data():
-    defaults = {"xp": 0, "rp": 0, "streak": 0, "social_rep": 0, "level": 1}
-    if os.path.exists(SAVE_FILE):
-        with open(SAVE_FILE, "r") as f:
-            data = json.load(f)
-            for k, v in defaults.items():
-                if k not in data: data[k] = v
-            return data
-    return defaults
+    sheet = get_gsheet()
+    row = sheet.row_values(2) # Gets our stats from row 2
+    return {
+        "xp": int(row[1]), "rp": int(row[2]), "streak": int(row[3]),
+        "social_rep": int(row[4]), "level": int(row[5])
+    }
 
 def save_data(data):
-    with open(SAVE_FILE, "w") as f:
-        json.dump(data, f)
+    sheet = get_gsheet()
+    # Update row 2 with new values
+    sheet.update('B2:F2', [[data['xp'], data['rp'], data['streak'], data['social_rep'], data['level']]])
 
+# --- INITIALIZE GAME ---
 if 'game_data' not in st.session_state:
     st.session_state.game_data = load_data()
 
@@ -28,94 +41,37 @@ def update_stat(stat, amount, is_urgent=False):
     final_amount = int(amount * multiplier)
     st.session_state.game_data[stat] += final_amount
     
-    # Level Up Logic (Every 500 XP)
+    # Level Up Logic
     new_level = (st.session_state.game_data['xp'] // 500) + 1
     if new_level > st.session_state.game_data['level']:
         st.session_state.game_data['level'] = new_level
         st.balloons()
-        st.success(f"🎊 LEVEL UP! You are now Level {new_level} CEO")
         
     save_data(st.session_state.game_data)
-    st.toast(f"📈 {stat.upper()} +{final_amount} (Urgency Bonus: x{multiplier})")
+    st.toast(f"📈 {stat.upper()} +{final_amount} (Saved to Cloud!)")
 
-# --- UI SETUP ---
+# --- UI (Simplified for phone) ---
 st.set_page_config(page_title="Hungerford Holdings CEO", layout="wide")
 
-# --- SIDEBAR: TECH TREE & PROGRESS ---
-with st.sidebar:
-    st.title(f"🎖️ Level {st.session_state.game_data['level']} CEO")
-    
-    # Progress to Next Level
-    current_xp = st.session_state.game_data['xp']
-    next_level_xp = st.session_state.game_data['level'] * 500
-    prev_level_xp = (st.session_state.game_data['level'] - 1) * 500
-    progress = (current_xp - prev_level_xp) / 500
-    
-    st.write("Level Progress")
-    st.progress(min(progress, 1.0))
-    st.caption(f"{current_xp} / {next_level_xp} XP")
+st.title(f"🎖️ CEO Level {st.session_state.game_data['level']}")
+st.progress(min((st.session_state.game_data['xp'] % 500) / 500, 1.0))
 
-    st.divider()
-    st.subheader("🌲 The Tech Tree")
-    st.caption("Unlock new tiers by gaining RP")
-    
-    # Visual Tech Tree nodes
-    tiers = {
-        "Tier 1: Survival": 0,
-        "Tier 2: Optimization": 250,
-        "Tier 3: Automation (Taylor)": 750,
-        "Tier 4: Wealth Legacy": 1500
-    }
-    for tier, req in tiers.items():
-        color = "🟢" if st.session_state.game_data['rp'] >= req else "⚪"
-        st.write(f"{color} {tier}")
-
-# --- MAIN DASHBOARD ---
-st.title("🏛️ Hungerford Holdings: Strategic Ops")
-today = date.today()
-
-# --- DYNAMIC CALENDAR MISSIONS ---
-st.subheader("📅 Active Missions & Urgency Bonuses")
-col_cal1, col_cal2 = st.columns(2)
-
-with col_cal1:
-    # Mission 1: The Wedding Booking
-    wedding_deadline = date(2025, 12, 23) # Example deadline
-    days_left = (wedding_deadline - today).days
-    if st.button(f"🏨 Book Krishan's Wedding Hotel ({days_left}d left! 1.5x Bonus)"):
-        update_stat('social_rep', 40, is_urgent=True)
-
-with col_cal2:
-    # Mission 2: Flat Tidying (Before Dad's)
-    if st.button("🧹 Deep Clean Flat (Pre-Holiday Deployment! 1.5x Bonus)"):
-        update_stat('xp', 50, is_urgent=True)
-
-st.divider()
-
-t1, t2, t3, t4 = st.tabs(["Daily Maintenance", "Isio & Finance", "Stakeholder: Dad", "Social & Recovery"])
+t1, t2, t3, t4 = st.tabs(["Daily", "Work", "Dad", "Social"])
 
 with t1:
-    if st.button("✅ 10x Press-ups/Chin-ups"): update_stat('xp', 20)
-    if st.button("✅ Skincare/Hygiene Stack"): update_stat('xp', 10)
+    if st.button("✅ Fitness Stack"): update_stat('xp', 20)
+    if st.button("🧹 Clean Flat"): update_stat('xp', 50, is_urgent=True)
 
 with t2:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.write("### Work (RP focus)")
-        if st.button("🚀 Deploy Project Taylor Sprint"): update_stat('rp', 60)
-        if st.button("📋 RFP Automation Testing"): update_stat('rp', 50)
-    with c2:
-        st.write("### Finance (XP focus)")
-        if st.button("💰 Execute ISA/Crypto Rebalance"): update_stat('xp', 40)
-        if st.button("📄 Prepare IFA Trust Documents"): update_stat('xp', 60)
+    if st.button("🚀 Project Taylor"): update_stat('rp', 60)
+    if st.button("💰 Finance Review"): update_stat('rp', 40)
 
 with t3:
-    st.write("### Supporting Dad")
-    if st.button("🚗 Car Research / Showroom Visit"): update_stat('xp', 50)
-    if st.button("🩺 Doctor's Appointment 'Success'"): update_stat('xp', 100) # Big reward for hard task!
-    if st.button("🎿 2026 Trip / Skiing Research"): update_stat('xp', 30)
+    st.info("🎯 Goal: Boost Dad's Confidence")
+    if st.button("🚗 Car Showroom Visit"): update_stat('xp', 50)
+    if st.button("🩺 Doctor's Appointment"): update_stat('xp', 100)
+    if st.button("🎿 Skiing Research"): update_stat('xp', 30)
 
 with t4:
-    if st.button("🏇 Organize Go-Karting/Poker"): update_stat('social_rep', 70)
-    if st.button("📖 Read Economist (Anti-Reddit Buff)"): update_stat('xp', 20)
-    if st.button("🐎 Watch Slow Horses"): update_stat('xp', 10)
+    if st.button("🏨 Book Wedding Hotel"): update_stat('social_rep', 40, is_urgent=True)
+    if st.button("🏇 Poker/Go-Karting"): update_stat('social_rep', 50)
