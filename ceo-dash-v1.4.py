@@ -6,7 +6,7 @@ from datetime import datetime, date
 # --- 1. CORE CONFIG ---
 st.set_page_config(page_title="Hungerford Holdings MD", layout="wide")
 
-# --- 2. ASSET ENGINE (GitHub Raw Fix) ---
+# --- 2. ASSET ENGINE (Direct GitHub Raw) ---
 GITHUB_BASE = "https://raw.githubusercontent.com/jhitchenor/hungerford-holdings/main/assets/"
 def get_portrait_url(filename):
     return f"{GITHUB_BASE}{filename}"
@@ -23,30 +23,35 @@ def get_sheets():
             creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
         client = gspread.authorize(creds)
         spreadsheet = client.open_by_key("1wZSAKq283Q1xf9FAeMBIw403lpavRRAVLKNntc950Og")
-        return spreadsheet.worksheet("Sheet1"), spreadsheet.worksheet("XP_History")
+        
+        s1 = spreadsheet.worksheet("Sheet1")
+        xh = spreadsheet.worksheet("XP_History")
+        return s1, xh
     except Exception as e:
-        st.error(f"Connection Failed: {e}")
+        # This is the 'NoneType' fix: if connection fails, we catch it here
+        st.sidebar.error(f"⚠️ Registry Offline: {e}")
         return None, None
 
 def load_data():
     sheet1, history_sheet = get_sheets()
-    if not sheet1:
+    if not sheet1 or not history_sheet:
+        # Fallback stats so the UI doesn't break
         return {"xp": 530, "rp": 0, "streak": 1, "level": 1, "credits": 50, "golf_best": 95}, []
     try:
         row = sheet1.row_values(2)
-        # Stats Map: B=XP, C=RP, D=Streak, E=Level, F=Credits, G=Golf_PB
+        # B=XP, C=RP, D=Streak, E=Level, F=Credits, G=Golf_PB
         stats = {
             "xp": int(row[1]), "rp": int(row[2]), "streak": int(row[3]), 
             "level": int(row[4]), "credits": int(row[5]) if len(row) > 5 else 50,
             "golf_best": int(row[6]) if len(row) > 6 else 95
         }
-        # Load history to see what tasks are done
         history = history_sheet.get_all_records()
     except:
         stats = {"xp": 530, "rp": 0, "streak": 1, "level": 1, "credits": 50, "golf_best": 95}
         history = []
     return stats, history
 
+# Initialize session
 if 'game_data' not in st.session_state:
     stats, history = load_data()
     st.session_state.game_data = stats
@@ -55,71 +60,82 @@ if 'game_data' not in st.session_state:
 
 def update_permanent(stat_updates, task_id):
     sheet1, history_sheet = get_sheets()
-    if not history_sheet: return
     
-    # 1. Update Session State
+    # CRITICAL FIX: The 'NoneType' check to prevent app crashes
+    if history_sheet is None or sheet1 is None:
+        st.error("Action Failed: Google Sheets connection is currently unavailable.")
+        return
+
     for stat, amount in stat_updates.items():
         st.session_state.game_data[stat] += amount
         if stat == 'xp': st.session_state.game_data['credits'] += int(amount * 0.1)
         if stat == 'rp': st.session_state.game_data['credits'] += int(amount * 0.2)
     
     g = st.session_state.game_data
-    # 2. Append to XP_History (Date, TaskID, Total_XP)
+    # Log to XP_History (3 columns: Date, TaskID, Total_XP)
     history_sheet.append_row([str(date.today()), task_id, g['xp']])
     
-    # 3. Update Master Stats (Sheet1)
+    # Update Sheet1 (B2:G2)
     sheet1.update('B2:G2', [[g['xp'], g['rp'], g['streak'], g['level'], g['credits'], g['golf_best']]])
     st.rerun()
 
 # --- 4. ADVISOR PROFILES ---
 ADVISORS = {
-    "Chief of Staff": {"img": get_portrait_url("cos.png"), "directive": "Jack, the SNIB and Taylor projects are your highest leverage professional assets right now."},
-    "Diary Secretary": {"img": get_portrait_url("diary.png"), "directive": "Home logistics: Clear the JWST mirror and Sound panelling tonight for a zero-friction return on Friday."},
-    "Head of M&A": {"img": get_portrait_url("m_and_a.png"), "directive": "Dating and Social are XP assets. Use the golf round to capture fresh visuals for the Hinge refresh."},
-    "Portfolio Manager": {"img": get_portrait_url("portfolio.png"), "directive": "The CCJ strike on Jan 2nd remains our primary financial objective."},
-    "Performance Coach": {"img": get_portrait_url("coach.png"), "directive": "40 XP Base for golf + bonus for sub-100 performance."}
+    "Chief of Staff": {"img": get_portrait_url("cos.png"), "directive": "Jack, the SNIB bid and Taylor logic are our high-value career assets."},
+    "Diary Secretary": {"img": get_portrait_url("diary.png"), "directive": "The 'HQ Reset' (Mirror/Mould/Shirts) must be finalized tonight for Friday's deployment."},
+    "Head of M&A": {"img": get_portrait_url("m_and_a.png"), "directive": "Hertsmere networking with Shivam is a dual mission: build equity and refresh Hinge photos."},
+    "Portfolio Manager": {"img": get_portrait_url("portfolio.png"), "directive": "The CCJ strike on Jan 2nd is the primary objective of the Finance sector."},
+    "Performance Coach": {"img": get_portrait_url("coach.png"), "directive": "40 XP Base for golf + bonus for sub-100. Every stroke matters!"}
 }
 
-# --- 5. TASK REPOSITORY ---
-DATA_DAILY = [{"id": "skin_d", "name": "Skincare Routine", "xp": 10, "adv": "Chief of Staff"},
-              {"id": "supp_d", "name": "Supplement Stack", "xp": 10, "adv": "Performance Coach"},
-              {"id": "read_d", "name": "Read for 30 mins", "xp": 20, "adv": "Chief of Staff"},
-              {"id": "cook_d", "name": "Cook Meal from Scratch", "xp": 20, "adv": "Performance Coach"}]
+# --- 5. TASK REPOSITORY (AUDITED FROM CSV) ---
+DATA_DAILY = [
+    {"id": "skin_d", "name": "Skincare Routine", "xp": 10, "adv": "Chief of Staff"},
+    {"id": "supp_d", "name": "Supplement Stack", "xp": 10, "adv": "Performance Coach"},
+    {"id": "read_d", "name": "Read for 30 mins", "xp": 20, "adv": "Chief of Staff"},
+    {"id": "cook_d", "name": "Cook Meal from Scratch", "xp": 20, "adv": "Performance Coach"}
+]
 
-DATA_MAINTENANCE = [{"id": "iron_p", "name": "Iron 5 Work Shirts", "xp": 40, "adv": "Diary Secretary"},
-                    {"id": "clothes_p", "name": "Throw out old clothes", "xp": 35, "adv": "Diary Secretary"},
-                    {"id": "jwst_p", "name": "Hang JWST Mirror", "xp": 30, "adv": "Diary Secretary"},
-                    {"id": "sound_p", "name": "Hang Sound Panelling", "xp": 25, "adv": "Diary Secretary"},
-                    {"id": "vinyls_p", "name": "Hang Vinyls", "xp": 20, "adv": "Diary Secretary"},
-                    {"id": "mould_p", "name": "Remove Shower Mould", "xp": 50, "adv": "Diary Secretary"},
-                    {"id": "bedroom_p", "name": "Bedroom Reorganisation", "xp": 60, "adv": "Diary Secretary"}]
+DATA_MAINTENANCE = [
+    {"id": "iron_p", "name": "Iron 5 Work Shirts", "xp": 40, "adv": "Diary Secretary"},
+    {"id": "clothes_p", "name": "Throw out old clothes", "xp": 35, "adv": "Diary Secretary"},
+    {"id": "jwst_p", "name": "Hang JWST Mirror", "xp": 30, "adv": "Diary Secretary"},
+    {"id": "sound_p", "name": "Hang Sound Panelling", "xp": 25, "adv": "Diary Secretary"},
+    {"id": "mould_p", "name": "Remove Shower Mould", "xp": 50, "adv": "Diary Secretary"},
+    {"id": "bedroom_p", "name": "Bedroom Reorganisation", "xp": 60, "adv": "Diary Secretary"}
+]
 
-DATA_ISIO_RP = [{"id": "snib_p", "name": "SNIB (9 Jan): Julie Review Prep", "rp": 120, "adv": "Chief of Staff"},
-                {"id": "jen_p", "name": "Jen: Modular Deck Update", "rp": 150, "adv": "Chief of Staff"},
-                {"id": "taylor_gov_p", "name": "Taylor: Governance Strategy", "rp": 200, "adv": "Portfolio Manager"},
-                {"id": "office_d", "name": "Isio HQ Day (London)", "rp": 30, "adv": "Chief of Staff"}]
+DATA_ISIO_RP = [
+    {"id": "snib_julie_p", "name": "SNIB (9 Jan): Julie Review Prep", "rp": 120, "adv": "Chief of Staff"},
+    {"id": "jen_p", "name": "Jen: Modular Deck Update", "rp": 150, "adv": "Chief of Staff"},
+    {"id": "taylor_gov_p", "name": "Taylor: Governance Strategy", "rp": 200, "adv": "Portfolio Manager"},
+    {"id": "office_d", "name": "Isio HQ Day (London)", "rp": 30, "adv": "Chief of Staff"}
+]
 
-DATA_STAKEHOLDERS = [{"id": "hotel_p", "name": "Book Wedding Hotel (Krishan)", "xp": 50, "urgent": True, "adv": "Diary Secretary"},
-                    {"id": "poker_p", "name": "Organise Poker Night", "xp": 20, "adv": "Head of M&A"},
-                    {"id": "dad_p", "name": "Wellness Call (Dad)", "xp": 40, "adv": "Chief of Staff"}]
+DATA_ATHLETIC = [
+    {"id": "padel_p", "name": "Organise Padel", "xp": 10, "adv": "Performance Coach"},
+    {"id": "mid_foot_play_d", "name": "Play Midweek Football", "xp": 25, "adv": "Performance Coach"},
+    {"id": "squash_p", "name": "Play Squash", "xp": 40, "adv": "Performance Coach"}
+]
+
+DATA_STAKEHOLDERS = [
+    {"id": "hotel_p", "name": "Book Wedding Hotel (Krishan)", "xp": 50, "urgent": True, "adv": "Diary Secretary"},
+    {"id": "dad_p", "name": "Wellness Call (Dad)", "xp": 40, "adv": "Chief of Staff"}
+]
 
 # --- 6. RENDERER ---
 def render_command_list(task_list, grp, show_rp=False):
     today = str(date.today())
     completed_ids = [str(r.get('TaskID', '')) for r in st.session_state.history]
-    
     for t in task_list:
         t_id, adv_name = t['id'], t['adv']
-        is_done_ever = t_id in completed_ids
-        is_done_today = any(str(r.get('TaskID', '')) == t_id and str(r.get('Date', '')) == today for r in st.session_state.history)
-        
-        if t_id.endswith("_p") and is_done_ever: continue
-        done = is_done_today if t_id.endswith("_d") else is_done_ever
+        is_done = t_id in completed_ids if t_id.endswith("_p") else any(str(r.get('TaskID','')) == t_id and str(r.get('Date','')) == today for r in st.session_state.history)
+        if t_id.endswith("_p") and is_done: continue
         
         c1, c2 = st.columns([0.85, 0.15])
         with c1:
-            lbl = f"✅ {t['name']}" if done else f"{t['name']} (+{t.get('rp' if show_rp else 'xp', 0)} {'RP' if show_rp else 'XP'})"
-            if st.button(lbl, key=f"btn_{t_id}_{grp}", use_container_width=True, disabled=done):
+            lbl = f"✅ {t['name']}" if is_done else f"{t['name']} (+{t.get('rp' if show_rp else 'xp', 0)} {'RP' if show_rp else 'XP'})"
+            if st.button(lbl, key=f"btn_{t_id}_{grp}", use_container_width=True, disabled=is_done):
                 update_permanent({'xp': t.get('xp', 0), 'rp': t.get('rp', 0)}, t_id)
         with c2:
             if st.button("💬", key=f"c_{t_id}_{grp}", use_container_width=True):
