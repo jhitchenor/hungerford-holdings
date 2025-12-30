@@ -1,47 +1,37 @@
 import streamlit as st
-# ... [Keeping original GSheet and State logic from v5.0] ...
+# ... [Keeping GSheet and Core Logic from v5.2] ...
 
-# --- NEW: THE TREASURY SHOP DATA ---
-REWARDS = [
-    {"name": "PS5 Controller", "cost": 350, "adv": "Portfolio Manager"},
-    {"name": "Second Hand 7-Wood", "cost": 800, "adv": "Performance Coach"},
-    {"name": "65\" 4K TV", "cost": 2500, "adv": "Diary Secretary"},
-    {"name": "Dubai Trip (Ash & Nick)", "cost": 6000, "adv": "Head of M&A"},
+# --- 4. TASK LIBRARIES (Refined for Year-End) ---
+DATA_DAILY = [
+    {"name": "Skincare Routine", "xp": 10, "adv": "Chief of Staff", "msg": "Executive presence is maintained daily."},
+    {"name": "Supplement Stack", "xp": 10, "adv": "Performance Coach", "msg": "Recovery after football is vital. Focus on Magnesium and Zinc tonight."},
+    {"name": "Post-Football Stretch", "xp": 20, "adv": "Performance Coach", "msg": "Flush the lactic acid. We need those glutes firing for the first tee at Hertsmere tomorrow."},
 ]
 
-# --- NEW: FINANCIAL & M&A TASKS ---
-DATA_FINANCE = [
-    {"name": "Audit Santander Direct Debits", "xp": 60, "adv": "Portfolio Manager", "msg": "Identify every 'Legacy DD' and move them to Chase. Efficiency is profit."},
-    {"name": "Close Santander Account", "xp": 100, "adv": "Portfolio Manager", "msg": "Liquidate the relic. One less point of failure in our system."},
-    {"name": "Apply for Credit Builder Card", "xp": 80, "adv": "Portfolio Manager", "msg": "We need to show the market we are a reliable borrower. Use it for fuel only."},
-    {"name": "Bitcoin/Gold Allocation (Initial)", "xp": 150, "adv": "Portfolio Manager", "msg": "Diversifying the Holdings into hard assets. HODL starts here."},
+DATA_MAINTENANCE = [
+    {"name": "Clean Kitchen", "xp": 25, "adv": "Diary Secretary", "msg": "Reset the engine room before the return to work."},
+    {"name": "Laundry: Sports Kit Cycle", "xp": 20, "adv": "Diary Secretary", "msg": "Get the football gear out and the golf gear ready."},
 ]
 
-DATA_MA_EXPANDED = [
-    {"name": "Intimacy Strategy Briefing", "xp": 50, "adv": "Chief of Staff", "msg": "Jack, darling, let's have a glass of wine and look at the pros/cons of your intimacy plan. We act with intention, not impulse."},
-    {"name": "Marylebone Evening Scout", "xp": 150, "adv": "Head of M&A", "msg": "Let's put you in a high-value environment. Marylebone is sophisticated, just like the partner you deserve."},
+DATA_CAPITAL = [
+    {"name": "Santander DD Audit", "xp": 60, "adv": "Portfolio Manager", "msg": "Scour the Santander statement. Identify what needs to move to Chase."},
+    {"name": "CCJ: Readiness Check", "xp": 50, "adv": "Portfolio Manager", "msg": "Verify the creditor's opening hours for Jan 2nd. We strike as soon as they open."},
+    {"name": "Isio Readiness: Inbox Audit", "xp": 75, "adv": "Chief of Staff", "msg": "A 30-minute 'recon' of your work inbox to remove Friday morning anxiety."},
 ]
 
-# --- UPDATED TAB LOGIC ---
-# Inside your tabs list:
-tabs = st.tabs(["🏛️ Board", "🚨 Critical", "⚡ Ops", "💼 Finance", "💼 Isio/Capital", "🥂 M&A", "👴 Stakeholders", "💎 Shop"])
+DATA_MA = [
+    {"name": "Visual Asset Audit: 10 Hinge Photos", "xp": 100, "adv": "Head of M&A", "msg": "Tomorrow evening's priority. No LoRA shortcuts—just the best version of Jack."},
+    {"name": "Active Networking (Apps)", "xp": 30, "adv": "Head of M&A", "msg": "The market is active over New Year. Stay visible."},
+]
 
-with tabs[3]:
-    st.subheader("📈 The Treasury: Financial Consolidation")
-    render_command_list(DATA_FINANCE, "fin")
+DATA_STAKEHOLDERS = [
+    {"name": "Hertsmere Golf Engagement (Shivam)", "xp": 100, "adv": "Performance Coach", "msg": "Focus on the Pendulum Putt. Stakeholder equity + Vitality XP."},
+    {"name": "Book Wedding Hotel (Krishan)", "xp": 50, "urgent": True, "adv": "Diary Secretary", "msg": "DEADLINE APPROACHING. Secure the room before you head to Hertsmere."},
+    {"name": "Arsenal Match Engagement", "xp": 25, "adv": "Diary Secretary", "msg": "Logged. Enjoy the game, Jack!"},
+    {"name": "Visit Hungerford", "xp": 150, "adv": "Chief of Staff", "msg": "High-value deployment. Plan this for the upcoming weekend."},
+]
 
-with tabs[5]:
-    st.subheader("🥂 Mergers & Acquisitions")
-    render_command_list(DATA_MA + DATA_MA_EXPANDED, "ma")
-
-with tabs[7]:
-    st.header("💎 The Reward Shop")
-    st.write(f"Treasury Balance: **{st.session_state.game_data['credits']} CC**")
-    
-    for r in REWARDS:
-        can_afford = st.session_state.game_data['credits'] >= r['cost']
-        if st.button(f"CLAIM: {r['name']} ({r['cost']} CC)", disabled=not can_afford, use_container_width=True):
-            st.session_state.game_data['credits'] -= r['cost']
-            st.balloons()
-            st.success(f"MD, you have earned the {r['name']}. Permission to spend real capital granted.")
-            st.rerun()
+# --- 6. UI ---
+# [Tabs and render_command_list logic remains the same as v5.2]
+# Restored Full Tab Names: 
+tabs = st.tabs(["🏛️ Board", "🚨 Critical", "⚡ Ops", "🧹 Maintenance", "💼 Isio/Capital", "🥂 M&A", "👴 Stakeholders"])
