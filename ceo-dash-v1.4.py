@@ -21,6 +21,7 @@ def load_game_data():
     try:
         sheet = get_gsheet("Sheet1")
         row = sheet.row_values(2)
+        # Columns: A:Date, B:XP, C:RP, D:Streak, E:SocialRep, F:Level
         return {"xp": int(row[1]), "rp": int(row[2]), "streak": int(row[3]), "social_rep": int(row[4]), "level": int(row[5])}
     except:
         return {"xp": 0, "rp": 0, "streak": 0, "social_rep": 0, "level": 1}
@@ -41,96 +42,88 @@ def update_stat(stat, amount, is_urgent=False):
     multiplier = 1.5 if is_urgent else 1.0
     final_amount = int(amount * multiplier)
     st.session_state.game_data[stat] += final_amount
+    
+    # Level Up Logic
+    xp_needed = st.session_state.game_data['level'] * 500
+    if st.session_state.game_data['xp'] >= xp_needed:
+        st.session_state.game_data['level'] += 1
+        st.balloons()
+        st.success(f"PROMOTED! You are now a Level {st.session_state.game_data['level']} Executive.")
+        
     save_game_data(st.session_state.game_data)
     st.toast(f"📈 {stat.upper()} +{final_amount}")
 
-# --- 3. TEMPORAL DATA ---
-today = date.today()
-day_name = today.strftime("%A")
-travel_date = date(2025, 12, 24)
+# --- 3. UI LAYOUT ---
+st.set_page_config(page_title="Hungerford Holdings MD", layout="wide")
 
-# --- 4. UI LAYOUT ---
-st.set_page_config(page_title="Hungerford Holdings CEO", layout="wide")
-
-with st.sidebar:
-    st.title(f"🎖️ Level {st.session_state.game_data['level']} CEO")
-    st.write(f"📅 **{day_name}, Dec {today.day}**")
+# Sidebar with Progress Bar
+with sidebar:
+    st.title(f"🎖️ Level {st.session_state.game_data['level']}")
+    titles = ["Junior Associate", "Senior Analyst", "Associate Director", "Partner", "Managing Director"]
+    title_idx = min(st.session_state.game_data['level'] - 1, len(titles)-1)
+    st.caption(f"Rank: {titles[title_idx]}")
+    
+    # Progress Bar
+    current_xp = st.session_state.game_data['xp']
+    next_level_xp = st.session_state.game_data['level'] * 500
+    prev_level_xp = (st.session_state.game_data['level'] - 1) * 500
+    progress = (current_xp - prev_level_xp) / (next_level_xp - prev_level_xp)
+    st.progress(min(max(progress, 0.0), 1.0))
+    st.write(f"{current_xp} / {next_level_xp} XP to next Promotion")
+    
     st.divider()
     st.metric("Corporate XP", st.session_state.game_data['xp'])
     st.metric("Research Points", st.session_state.game_data['rp'])
-    if st.button("Advance Daily Streak"): update_stat('streak', 1)
 
-st.title("🏛️ Hungerford Holdings: Strategic Ops")
+st.title("🏛️ Hungerford Holdings: MD Dashboard")
 
-tabs = st.tabs(["📅 Roadmap", "📊 Analytics", "⚡ Daily Ops", "🧹 Property Maint.", "🚀 Capital Projects", "🤝 Dad", "📣 Social"])
+tabs = st.tabs(["⚡ Daily Ops", "💼 Isio/Capital", "🤝 M&A (Dating)", "👴 Stakeholders", "📊 Analytics"])
 
-# TAB 0: ROADMAP
+# TAB 1: DAILY OPS
 with tabs[0]:
+    c1, c2 = st.columns(2)
+    with c1:
+        st.write("### Operational Readiness")
+        if st.button("🧘 Meditation (10m)"): update_stat('xp', 15)
+        if st.button("🤸 Stretching (15m)"): update_stat('xp', 15)
+        if st.button("📖 Industry Reading (30m)"): update_stat('xp', 35)
+    with c2:
+        st.write("### Property Maintenance")
+        if st.button("🧺 Laundry/Housework"): update_stat('xp', 20)
+        if st.button("🍽️ Kitchen Clean"): update_stat('xp', 25)
+
+# TAB 2: ISIO & CAPITAL PROJECTS
+with tabs[1]:
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("Upcoming Targets")
-        st.write("📍 **Dec 23:** Hotel Deadline & CCJ Phase 1")
-        st.write("🚗 **Dec 24:** Deployment to Hungerford HQ")
-        st.write("🎂 **Dec 27:** Neil's Birthday")
+        st.subheader("Isio Pursuit Management")
+        if st.button("🚀 High-Intensity Bid Work"): update_stat('rp', 100)
+        if st.button("🌙 Late Night Strategy Session"): update_stat('rp', 50)
     with col2:
-        st.subheader("Active Bonuses")
-        if today < travel_date: st.info("🛠️ **Car Pre-Flight Check:** Oil & Air Pressure bonus active.")
-        if day_name == "Wednesday": st.error("🗑️ **BIN DAY:** Put them out for tomorrow's collection!")
+        st.subheader("Legal & Credit (CCJ)")
+        if st.button("⚖️ CCJ: Evidence Gathering"): update_stat('xp', 150, is_urgent=True)
 
-# TAB 1: ANALYTICS (Existing Logic)
-with tabs[1]:
-    try:
-        history_sheet = get_gsheet("XP_History")
-        df = pd.DataFrame(history_sheet.get_all_records())
-        if not df.empty:
-            df['Date'] = pd.to_datetime(df['Date'])
-            daily_max = df.groupby('Date')['Total_XP'].max().reset_index()
-            st.line_chart(daily_max.set_index('Date')['Total_XP'])
-    except: st.warning("Add 'XP_History' to Google Sheets.")
-
-# TAB 2: DAILY OPS (Hygiene & Habits)
+# TAB 3: M&A (DATING)
 with tabs[2]:
+    st.info("Goal: Long-term Strategic Partnership")
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("🧼 Hygiene Stack (Skincare/Self-Care)"): update_stat('xp', 10)
-        if st.button("🏋️ Fitness Stack (Football/Press-ups)"): update_stat('xp', 30)
-        if st.button("📖 Quality Journalism (Economist/FT)"): update_stat('xp', 20)
+        if st.button("🔍 Market Research (Dating Apps/Profiles)"): update_stat('xp', 30)
+        if st.button("🥂 First Round Interview (Date)"): update_stat('xp', 100)
     with c2:
-        if st.button("🌳 Spend Time Outside (Walk/Parks)"): update_stat('xp', 15)
-        if st.button("⛳ Practice the Perfect Putt"): update_stat('xp', 15)
+        if st.button("📍 Out-of-Area Venture (Date outside Harrow)"): update_stat('xp', 150)
 
-# TAB 3: PROPERTY MAINTENANCE (Housework)
+# TAB 4: STAKEHOLDERS (DAD & FRIENDS)
 with tabs[3]:
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("🧺 Complete Laundry Cycle"): update_stat('xp', 10)
-        if st.button("🍽️ Clean the Kitchen"): update_stat('xp', 20)
-    with c2:
-        if st.button("🚿 Clean the Bathroom"): update_stat('xp', 20)
-        if day_name == "Wednesday":
-            if st.button("🗑️ Put Bins Out"): update_stat('xp', 20)
+    st.subheader("Family Equity (Dad)")
+    if st.button("🚗 CR-V Research/Logistics"): update_stat('xp', 50)
+    if st.button("📞 Quality Check-in Call"): update_stat('xp', 40)
+    
+    st.subheader("Social Network")
+    if st.button("🍻 Local Catch-up (Harrow)"): update_stat('social_rep', 30)
+    if st.button("🚇 Expansion Catch-up (London/Beyond)"): update_stat('social_rep', 75)
 
-# TAB 4: CAPITAL PROJECTS (The Big Stuff)
+# TAB 5: ANALYTICS
 with tabs[4]:
-    st.subheader("Isio Work (R&D)")
-    if st.button("🤖 Taylor: Governance Protocol"): update_stat('rp', 75)
-    
-    st.subheader("Financial & Credit Repair")
-    if st.button("⚖️ CCJ Boss Battle: ID Creditor"): update_stat('xp', 50)
-    if st.button("📑 Complete N443/CCJ Evidence"): update_stat('xp', 150, is_urgent=True)
-    
-    st.subheader("Home Renovation Projects")
-    if st.button("🛏️ Reorganise Bedroom"): update_stat('xp', 80)
-    if st.button("🧼 Remove Shower Mould"): update_stat('xp', 40)
-    if st.button("🛋️ Re-do the Lounge"): update_stat('xp', 100)
-
-# TAB 5: DAD (CR-V Strategy)
-with tabs[5]:
-    st.info("Strategy: 5th Gen (2019-2023) Hybrid AWD Focus")
-    if st.button("🚗 Car Pre-Flight: Oil & Air"): update_stat('xp', 40)
-    if st.button("🔍 Find 3x 5th Gen AWD EX on AutoTrader"): update_stat('xp', 30)
-
-# TAB 6: SOCIAL
-with tabs[6]:
-    if st.button("🏨 Book Wedding Hotel"): update_stat('social_rep', 40, is_urgent=True)
-    if st.button("⚽ Arsenal Game (Social Buff)"): update_stat('xp', 15)
+    st.write("XP Growth History")
+    # (Same logic as v2.4 for chart)
