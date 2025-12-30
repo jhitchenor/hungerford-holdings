@@ -133,4 +133,93 @@ m_a_dating = [
 
 stakeholders = [
     {"name": "Arsenal Match Engagement", "xp": 25, "advisor": "Diary Secretary", "advice": "Morale is a vital metric. Enjoy the game, but stay disciplined."},
-    {"name": "Weekly Wellness Call (Dad)", "xp":
+    {"name": "Weekly Wellness Call (Dad)", "xp": 40, "advisor": "Chief of Staff", "advice": "Strategic check-in. His stability is the foundation of the family office."},
+    {"name": "Car Pre-Flight Check", "xp": 40, "advisor": "Diary Secretary", "advice": "The CR-V must be mission-ready for the Hungerford deployment."},
+    {"name": "Book Wedding Hotel", "xp": 50, "urgent": True, "advisor": "Diary Secretary", "advice": "Deadlines are absolute. Secure the lodging before the market closes."},
+    {"name": "Non-Local Catch-up", "xp": 75, "advisor": "Head of M&A", "advice": "Maintain those distal connections. It keeps your network diverse."},
+    {"name": "Visit Hungerford", "xp": 150, "advisor": "Chief of Staff", "advice": "Direct oversight. Your presence is the highest-value investment you can make."}
+]
+
+# --- 5. RENDER HELPER ---
+def render_tasks(task_list, key_prefix, is_rp=False):
+    sorted_tasks = sorted(task_list, key=lambda x: x['xp'])
+    for t in sorted_tasks:
+        c1, c2 = st.columns([0.85, 0.15])
+        with c1:
+            unit = "RP" if is_rp else "XP"
+            if st.button(f"{t['name']} (+{t['xp']} {unit})", key=f"{key_prefix}_{t['name']}", use_container_width=True):
+                update_stat('rp' if is_rp else 'xp', t['xp'], is_urgent=t.get('urgent', False))
+        with c2:
+            with st.popover("🗨️"):
+                adv = t['advisor']
+                if adv in ADVISORS:
+                    st.image(ADVISORS[adv]['img'], use_container_width=True)
+                    st.caption(f"Memo from {adv}")
+                    st.markdown(f"*{t['advice']}*")
+
+# --- 6. MAIN UI ---
+with st.sidebar:
+    try: st.image(ADVISORS["Chief of Staff"]["img"])
+    except: st.warning("CoS Image Missing")
+    
+    st.title(f"🎖️ Level {st.session_state.game_data['level']}")
+    titles = ["Junior Associate", "Senior Analyst", "Associate Director", "Partner", "Managing Director", "Chairman"]
+    title_idx = min(st.session_state.game_data['level'] - 1, len(titles)-1)
+    st.subheader(titles[title_idx])
+    
+    # Progress Bar
+    curr = st.session_state.game_data['xp']
+    nxt = st.session_state.game_data['level'] * 500
+    prv = (st.session_state.game_data['level'] - 1) * 500
+    prog = min(max((curr - prv) / (nxt - prv), 0.0), 1.0)
+    st.progress(prog)
+    st.caption(f"{curr} / {nxt} XP to next level")
+    
+    st.divider()
+    st.metric("Total Corporate XP", st.session_state.game_data['xp'])
+    st.metric("Isio R&D (RP)", st.session_state.game_data['rp'])
+    if st.button("🔥 Log Daily Streak"): update_stat('streak', 1)
+
+st.title("🏛️ Hungerford Holdings: Executive Dashboard")
+
+tabs = st.tabs(["🏛️ Boardroom", "🚨 Critical Path", "⚡ Daily Ops", "🧹 Maintenance", "💼 Projects & Isio", "🥂 M&A", "👴 Stakeholders"])
+
+with tabs[0]:
+    st.markdown("## 👥 Executive Committee Briefing")
+    cols = st.columns(5)
+    for i, (name, info) in enumerate(ADVISORS.items()):
+        with cols[i]:
+            try: st.image(info['img'], use_container_width=True)
+            except: st.write("[Image Missing]")
+            st.subheader(name)
+            st.caption(info['title'])
+            st.info(info['directive'])
+
+with tabs[1]:
+    st.error("### Memo from the Chief of Staff")
+    all_xp_tasks = daily_ops + house_maint + capital_isio + m_a_dating + stakeholders + isio_performance
+    urgent_items = [t for t in all_xp_tasks if t.get('urgent') or t.get('xp', 0) >= 150]
+    render_tasks(urgent_items, "crit")
+
+with tabs[2]:
+    st.subheader("Operational Readiness")
+    render_tasks(daily_ops, "daily")
+
+with tabs[3]:
+    st.subheader("Property Maintenance")
+    render_tasks(house_maint, "maint")
+
+with tabs[4]:
+    st.markdown("### 🧪 Isio R&D")
+    render_tasks(isio_performance, "isio", is_rp=True)
+    st.divider()
+    st.markdown("### 🚀 Strategic Projects")
+    render_tasks(capital_isio, "cap")
+
+with tabs[5]:
+    st.subheader("Mergers & Acquisitions")
+    render_tasks(m_a_dating, "ma")
+
+with tabs[6]:
+    st.subheader("Stakeholder Management")
+    render_tasks(stakeholders, "stake")
