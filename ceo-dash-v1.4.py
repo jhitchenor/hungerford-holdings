@@ -21,17 +21,18 @@ def load_game_data():
     try:
         sheet = get_gsheet("Sheet1")
         row = sheet.row_values(2)
-        data = {"xp": int(row[1]), "rp": int(row[2]), "streak": int(row[3]), "social_rep": int(row[4]), "level": int(row[5])}
-        # Auto-promote to Level 2 based on your 505 XP
+        # We now only track B:XP, C:RP, D:Streak, E:Level
+        data = {"xp": int(row[1]), "rp": int(row[2]), "streak": int(row[3]), "level": int(row[4])}
         if data["xp"] >= 500 and data["level"] == 1: data["level"] = 2
         return data
     except:
-        return {"xp": 505, "rp": 0, "streak": 0, "social_rep": 0, "level": 2}
+        return {"xp": 505, "rp": 0, "streak": 0, "level": 2}
 
 def save_game_data(data):
     try:
         sheet1 = get_gsheet("Sheet1")
-        sheet1.update('B2:F2', [[data['xp'], data['rp'], data['streak'], data['social_rep'], data['level']]])
+        # Update columns B through E
+        sheet1.update('B2:E2', [[data['xp'], data['rp'], data['streak'], data['level']]])
         history_sheet = get_gsheet("XP_History")
         history_sheet.append_row([str(date.today()), data['xp']])
     except: pass
@@ -54,7 +55,6 @@ def update_stat(stat, amount, is_urgent=False):
 # --- 3. UI SETUP ---
 st.set_page_config(page_title="Hungerford Holdings MD", layout="wide")
 
-# Sidebar
 with st.sidebar:
     st.title(f"🎖️ Level {st.session_state.game_data['level']}")
     titles = ["Junior Associate", "Senior Analyst", "Associate Director", "Partner", "Managing Director", "Chairman"]
@@ -71,114 +71,113 @@ with st.sidebar:
     st.caption(f"{current_xp} / {next_level_xp} XP to next level")
     
     st.divider()
-    st.metric("Corporate XP", st.session_state.game_data['xp'])
+    st.metric("Total Corporate XP", st.session_state.game_data['xp'])
     st.metric("R&D Points (RP)", st.session_state.game_data['rp'])
-    st.metric("Social Rep", st.session_state.game_data['social_rep'])
+    if st.button("🔥 Log Streak"): update_stat('streak', 1)
 
-# --- MASTER TASK LISTS ---
-# Sorted by XP (lowest to highest) as requested
-daily_ops = sorted([
+st.title("🏛️ Hungerford Holdings: Strategic Operations")
+
+# --- TASK DATA WITH ADVICE ---
+def render_task_button(task_list, key_prefix, is_rp=False):
+    sorted_tasks = sorted(task_list, key=lambda x: x['xp'])
+    for t in sorted_tasks:
+        col1, col2 = st.columns([0.85, 0.15])
+        with col1:
+            label = f"{t['name']} (+{t['xp']} {'RP' if is_rp else 'XP'})"
+            if st.button(label, key=f"{key_prefix}_{t['name']}", use_container_width=True):
+                update_stat('rp' if is_rp else 'xp', t['xp'], is_urgent=t.get('urgent', False))
+        with col2:
+            if "advice" in t:
+                with st.popover("ℹ️"):
+                    st.markdown(f"**Chief of Staff Briefing:**\n\n{t['advice']}")
+
+# Task Definitions
+daily_ops = [
     {"name": "15 mins stretching", "xp": 10},
-    {"name": "Skincare Routine", "xp": 10},
-    {"name": "Supplement Stack", "xp": 10},
+    {"name": "Skincare Routine", "xp": 10, "advice": "Consistency is better than intensity. Your future self will thank you for the SPF."},
+    {"name": "Supplement Stack", "xp": 10, "advice": "Take with water. Omega-3s and Vitamin D are key for high-stress roles."},
     {"name": "Practice the Perfect Putt ⛳", "xp": 15},
-    {"name": "Read for 30 mins", "xp": 25},
-], key=lambda x: x['xp'])
+    {"name": "Read for 30 mins", "xp": 25, "advice": "Focus on long-form content. It trains the attention span needed for complex bids."},
+]
 
-property_maint = sorted([
+property_maint = [
     {"name": "Laundry Cycle", "xp": 20},
     {"name": "Clean the Kitchen", "xp": 25},
     {"name": "Clean the Lounge", "xp": 25},
     {"name": "Clean the Bathroom", "xp": 30},
-    {"name": "Remove Shower Mould", "xp": 40},
-], key=lambda x: x['xp'])
+    {"name": "Remove Shower Mould", "xp": 40, "advice": "Use a specialized bleach spray and leave it for 15 mins. Small fix, big visual impact."},
+]
 
-capital_projects = sorted([
-    {"name": "Gov/Client Research", "xp": 40},
-    {"name": "Update budget tracker", "xp": 50},
+capital_projects = [
+    {"name": "Update budget tracker", "xp": 50, "advice": "Accuracy in data is the foundation of every good holding company."},
     {"name": "Plan next week's meals", "xp": 50},
-    {"name": "Reorganise Bedroom", "xp": 80},
+    {"name": "Reorganise Bedroom", "xp": 80, "advice": "Your environment dictates your mindset. A clear room is a clear head."},
     {"name": "Re-do the Lounge (Renovation)", "xp": 100},
-    {"name": "Review investment portfolio", "xp": 150},
-    {"name": "CCJ: Evidence/Filing", "xp": 200, "urgent": True},
-], key=lambda x: x['xp'])
+    {"name": "Review investment portfolio", "xp": 150, "advice": "Look for diversification. Ensure your 'risk-on' assets match your long-term goals."},
+    {"name": "CCJ: Evidence/Filing", "xp": 200, "urgent": True, "advice": "Check the 'Date of Judgment' vs 'Date of Notice'. Keep every email in a dedicated folder."},
+]
 
-m_a_tasks = sorted([
-    {"name": "Active Networking (Apps)", "xp": 30},
+isio_tasks = [
+    {"name": "Deep work on CCJ project", "xp": 100, "advice": "Turn off notifications. 90 mins of flow state is worth 8 hours of distracted work."},
+    {"name": "Gov/Client Research", "xp": 40},
+]
+
+isio_rp = [
+    {"name": "Bid/Pursuit Sprint", "xp": 100, "advice": "Focus on the 'Unique Selling Point'—why Isio over the competitors?"},
+    {"name": "Night Owl Session (>8pm)", "xp": 50, "advice": "Leverage your natural rhythm, but set a hard 'screens off' time to protect sleep."},
+]
+
+m_a_tasks = [
+    {"name": "Active Networking (Apps)", "xp": 30, "advice": "Treat it like lead generation. It's a numbers game, but quality of 'lead' matters most."},
     {"name": "Personal Presentation (Grooming)", "xp": 40},
-    {"name": "Try a new recipe", "xp": 50},
-    {"name": "First Round Interview (The Date)", "xp": 100},
-    {"name": "Central London Venture (Out of Harrow)", "xp": 150},
-], key=lambda x: x['xp'])
+    {"name": "Try a new recipe", "xp": 50, "advice": "Learning to cook well is a high-ROI skill for future domestic partnership."},
+    {"name": "First Round Interview (The Date)", "xp": 100, "advice": "Be curious. Ask questions that reveal their values, not just their hobbies."},
+    {"name": "Central London Venture (Out of Harrow)", "xp": 150, "advice": "Getting out of your comfort zone geographically helps get you out of it mentally."},
+]
 
-stakeholders = sorted([
+stakeholders = [
     {"name": "Arsenal Match Engagement", "xp": 25},
     {"name": "Harrow Catch-up", "xp": 30},
-    {"name": "CR-V Market Search", "xp": 40},
+    {"name": "CR-V Market Search", "xp": 40, "advice": "Focus on mileage and full service history. The 5th Gen Hybrid is a solid reliable 'fleet' asset."},
     {"name": "Car Pre-Flight Check", "xp": 40},
-    {"name": "Weekly Wellness Call (Dad)", "xp": 40},
+    {"name": "Weekly Wellness Call (Dad)", "xp": 40, "advice": "Be patient. Just listening to his day is a major 'Equity' deposit."},
     {"name": "Book Wedding Hotel", "xp": 50, "urgent": True},
-    {"name": "Non-Local Catch-up", "xp": 75},
-    {"name": "Visit Hungerford", "xp": 150},
-], key=lambda x: x['xp'])
+    {"name": "Non-Local Catch-up", "xp": 75, "advice": "Maintaining 'Distal Connections' is key for a well-rounded social portfolio."},
+    {"name": "Visit Hungerford", "xp": 150, "advice": "Presence is the most valuable gift you can give your father right now."},
+]
 
-# DASHBOARD
-st.title("🏛️ Hungerford Holdings: Strategic Operations")
+# TABS
+tabs = st.tabs(["🚨 Critical Path", "⚡ Daily Ops", "💼 Capital & Isio", "🥂 M&A", "👴 Stakeholders"])
 
-# New Tab structure with "Critical Path" at the start
-tabs = st.tabs(["🚨 Critical Path", "⚡ Daily Ops", "💼 Capital Projects", "🥂 M&A", "👴 Stakeholders"])
-
-# TAB 0: CRITICAL PATH (The "Pressing" View)
 with tabs[0]:
     st.error("### Immediate Strategic Objectives")
-    st.write("These tasks are time-sensitive or carry high XP impact.")
-    
-    # Filter for urgent tasks or high XP tasks (>100)
-    urgent_tasks = [t for t in capital_projects + stakeholders if t.get('urgent') or t['xp'] >= 150]
-    
-    for t in urgent_tasks:
-        stat_type = 'social_rep' if 'Wedding' in t['name'] else 'xp'
-        if st.button(f"CRITICAL: {t['name']} (+{t['xp']} {stat_type.upper()})", key=f"crit_{t['name']}"):
-            update_stat(stat_type, t['xp'], is_urgent=True)
-            
-    st.info("💡 Tip: Use your Night Owl energy to tackle one of these before 11 PM.")
+    all_tasks = daily_ops + property_maint + capital_projects + m_a_tasks + stakeholders + isio_tasks
+    urgent_items = [t for t in all_tasks if t.get('urgent') or t['xp'] >= 150]
+    render_task_button(urgent_items, "crit")
 
-# TAB 1: DAILY OPS
 with tabs[1]:
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("### 🧘 Operational Readiness")
-        for t in daily_ops:
-            if st.button(f"{t['name']} (+{t['xp']} XP)", key=f"daily_{t['name']}"):
-                update_stat('xp', t['xp'])
+        render_task_button(daily_ops, "daily")
     with c2:
         st.markdown("### 🧹 Property Maintenance")
-        for t in property_maint:
-            if st.button(f"{t['name']} (+{t['xp']} XP)", key=f"prop_{t['name']}"):
-                update_stat('xp', t['xp'])
+        render_task_button(property_maint, "prop")
 
-# TAB 2: CAPITAL PROJECTS
 with tabs[2]:
     st.markdown("### 🚀 Isio & Major Assets")
-    if st.button("Deep work on CCJ project (+100 XP)", key="ccj_deep"): update_stat('xp', 100)
-    if st.button("Bid/Pursuit Sprint (+100 RP)", key="isio_p"): update_stat('rp', 100)
-    if st.button("Night Owl Session (>8pm) (+50 RP)", key="isio_l"): update_stat('rp', 50)
+    render_task_button(isio_tasks, "isio_xp")
     st.divider()
-    for t in capital_projects:
-        if st.button(f"{t['name']} (+{t['xp']} XP)", key=f"cap_{t['name']}"):
-            update_stat('xp', t['xp'], is_urgent=t.get('urgent', False))
+    st.markdown("### 🧪 R&D (Isio Performance)")
+    render_task_button(isio_rp, "isio_rp", is_rp=True)
+    st.divider()
+    st.markdown("### 📈 Strategic Portfolio")
+    render_task_button(capital_projects, "cap")
 
-# TAB 3: M&A
 with tabs[3]:
     st.markdown("### 🥂 Mergers & Acquisitions")
-    for t in m_a_tasks:
-        if st.button(f"{t['name']} (+{t['xp']} XP)", key=f"ma_{t['name']}"):
-            update_stat('xp', t['xp'])
+    render_task_button(m_a_tasks, "ma")
 
-# TAB 4: STAKEHOLDERS
 with tabs[4]:
     st.markdown("### 👴 Stakeholder Management")
-    for t in stakeholders:
-        stat = 'social_rep' if 'Catch-up' in t['name'] or 'Wedding' in t['name'] else 'xp'
-        if st.button(f"{t['name']} (+{t['xp']} {stat.upper()})", key=f"stake_{t['name']}"):
-            update_stat(stat, t['xp'], is_urgent=t.get('urgent', False))
+    render_task_button(stakeholders, "stake")
