@@ -4,10 +4,10 @@ import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, date
 
-# --- 1. SET PAGE CONFIG ---
+# --- 1. SET PAGE CONFIG (MUST BE FIRST) ---
 st.set_page_config(page_title="Hungerford Holdings MD", layout="wide")
 
-# --- 2. DATA LOADING ---
+# --- 2. GOOGLE SHEETS & DATA PERSISTENCE ---
 def get_gsheet(sheet_name="Sheet1"):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     try:
@@ -34,97 +34,103 @@ def load_game_data():
         return default_data
     except: return default_data
 
+# Initialize State
 if 'game_data' not in st.session_state:
     st.session_state.game_data = load_game_data()
+
+def save_game_data(data):
+    try:
+        sheet1 = get_gsheet("Sheet1")
+        if sheet1:
+            sheet1.update('B2:E2', [[data['xp'], data['rp'], data['streak'], data['level']]])
+            history_sheet = get_gsheet("XP_History")
+            history_sheet.append_row([str(date.today()), data['xp']])
+    except: pass
 
 def update_stat(stat, amount, is_urgent=False):
     multiplier = 1.5 if is_urgent else 1.0
     st.session_state.game_data[stat] += int(amount * multiplier)
-    if st.session_state.game_data['xp'] >= (st.session_state.game_data['level'] * 500):
+    xp_needed = st.session_state.game_data['level'] * 500
+    if st.session_state.game_data['xp'] >= xp_needed:
         st.session_state.game_data['level'] += 1
         st.balloons()
-    # In a real app, you'd call save_game_data here
+    save_game_data(st.session_state.game_data)
     st.rerun()
 
-# --- 3. ADVISOR PROFILES & LIVE DIRECTIVES ---
+# --- 3. ADVISOR PROFILES ---
 ADVISORS = {
     "Chief of Staff": {
         "img": "assets/cos.png",
-        "title": "Executive Office",
-        "style": "Authoritative & Warm",
+        "title": "Strategic Oversight",
+        "voice": "Authoritative & Warm",
         "directive": "Jack, darling, we need that CCJ cleared. It's the only anchor holding the ship back. Let's make it our primary objective this week."
     },
     "Diary Secretary": {
         "img": "assets/diary.png",
         "title": "Operations",
-        "style": "Crisp & Professional",
-        "directive": "I've reviewed your logistics for the Hungerford deployment. Ensure the CR-V is checked today. No excuses for mechanical failure."
+        "voice": "Crisp & Professional",
+        "directive": "Logistics check: The Harrow HQ needs a reset. I've scheduled your maintenance tasks for this evening. No backlog allowed."
     },
     "Head of M&A": {
         "img": "assets/m_and_a.png",
         "title": "Growth & Partnerships",
-        "style": "Flirty & Strategic",
-        "directive": "Harrow is lovely, but you're a Central London man at heart, handsome. Let's find an acquisition (a date) in the West End this weekend."
+        "voice": "Flirty & Strategic",
+        "directive": "The London market is heating up, handsome. Staying in Harrow is safe, but high-growth acquisitions happen in the West End."
     },
     "Portfolio Manager": {
         "img": "assets/portfolio.png",
         "title": "Finance & Treasury",
-        "style": "Analytical & Precise",
-        "directive": "The numbers don't lie. If we don't update that budget tracker, we're flying blind. 5 minutes of data entry for total clarity."
+        "voice": "Analytical & Precise",
+        "directive": "The numbers don't lie. I need that budget tracker updated today so we can forecast your 2026 expansion."
     },
     "Performance Coach": {
         "img": "assets/coach.png",
         "title": "Human Capital",
-        "style": "Bubbly & Energetic",
-        "directive": "Let's go, Champ! That golf swing needs a flexible T-spine. Give me 15 minutes of stretching and feel the power!"
+        "voice": "Bubbly & Energetic",
+        "directive": "Let's go, Champ! Your T-spine is looking stiff. Give me 15 minutes of stretching to unlock that golf power!"
     }
 }
 
-# --- 4. THE TASK RENDERER ---
-def render_task_section(task_list, key_prefix, is_rp=False):
-    sorted_tasks = sorted(task_list, key=lambda x: x['xp'])
-    for t in sorted_tasks:
-        col1, col2 = st.columns([0.85, 0.15])
-        with col1:
-            label = f"{t['name']} (+{t['xp']} {'RP' if is_rp else 'XP'})"
-            if st.button(label, key=f"{key_prefix}_{t['name']}", use_container_width=True):
-                update_stat('rp' if is_rp else 'xp', t['xp'], is_urgent=t.get('urgent', False))
-        with col2:
-            with st.popover("🗨️"):
-                adv = t['advisor']
-                st.image(ADVISORS[adv]['img'], use_container_width=True)
-                st.subheader(f"Memo: {adv}")
-                st.write(f"*{t['advice']}*")
-
-# --- 5. TASK LIBRARIES (With "Voices") ---
+# --- 4. TASK LIBRARIES ---
 daily_ops = [
     {"name": "Skincare Routine", "xp": 10, "advisor": "Chief of Staff", "advice": "We must maintain the brand, Jack. Looking the part is half the battle."},
     {"name": "Supplement Stack", "xp": 10, "advisor": "Performance Coach", "advice": "Fuel your brain, Champ! Those Omega-3s are like high-octane petrol for your mind!"},
-    {"name": "15 mins stretching", "xp": 15, "advisor": "Performance Coach", "advice": "Deep breaths! Let's get that rotation back so you can crush it on the fairway!"},
+    {"name": "15 mins stretching", "xp": 15, "advisor": "Performance Coach", "advice": "Deep breaths! Let's get that T-spine rotation back so you can crush it on the fairway!"},
+    {"name": "Practice the Perfect Putt ⛳", "xp": 15, "advisor": "Performance Coach", "advice": "20 reps. Golf is won on the green, not the tee."},
+    {"name": "Read for 30 mins", "xp": 25, "advisor": "Chief of Staff", "advice": "Deep literacy is a competitive advantage in bid management. Focus, darling."},
 ]
 
-m_a_tasks = [
-    {"name": "Active Networking (Apps)", "xp": 30, "advisor": "Head of M&A", "advice": "Don't be shy, handsome. Put yourself out there—the 'market' is waiting for a man like you."},
-    {"name": "Central London Venture", "xp": 150, "advisor": "Head of M&A", "advice": "A change of scenery is so refreshing. Let's find a chic little spot in Marylebone and see who catches your eye."},
+house_maint = [
+    {"name": "Laundry Cycle", "xp": 20, "advisor": "Diary Secretary", "advice": "A clean uniform for a clean mindset. Keep the backlog at zero."},
+    {"name": "Clean the Kitchen", "xp": 25, "advisor": "Diary Secretary", "advice": "The engine room of the home must be spotless."},
+    {"name": "Clean the Lounge", "xp": 25, "advisor": "Diary Secretary", "advice": "Optimizing the rest area. You can't perform if your lounge is cluttered."},
+    {"name": "Clean the Bathroom", "xp": 30, "advisor": "Diary Secretary", "advice": "Sanitation is a non-negotiable standard for the MD."},
+    {"name": "Remove Shower Mould", "xp": 40, "advisor": "Diary Secretary", "advice": "Addressing deferred maintenance now prevents structural decay later."}
 ]
 
-# ... [Include other task lists here following the same advisor/advice structure] ...
+capital_isio = [
+    {"name": "Update budget tracker", "xp": 50, "advisor": "Portfolio Manager", "advice": "Know your numbers, Jack. Liquidity is the foundation of freedom."},
+    {"name": "Plan next week's meals", "xp": 50, "advisor": "Performance Coach", "advice": "Fuel planning prevents poor performance. Don't eat like an amateur!"},
+    {"name": "Reorganise Bedroom", "xp": 80, "advisor": "Diary Secretary", "advice": "Your bedroom is your recovery suite. Make it worthy of an executive."},
+    {"name": "Deep work on CCJ project", "xp": 100, "advisor": "Chief of Staff", "advice": "Focus, Jack. 90 minutes of flow will slay this beast."},
+    {"name": "Review investment portfolio", "xp": 150, "advisor": "Portfolio Manager", "advice": "Rebalancing assets to ensure the Holdings remain inflation-proof."},
+    {"name": "CCJ: Evidence/Filing", "xp": 200, "urgent": True, "advisor": "Portfolio Manager", "advice": "This is a priority one audit. Ensure every timestamp is recorded."}
+]
 
-# --- 6. UI LAYOUT ---
-with st.sidebar:
-    st.image(ADVISORS["Chief of Staff"]["img"])
-    st.title(f"Level {st.session_state.game_data['level']}")
-    # ... [Sidebar stats logic] ...
+isio_performance = [
+    {"name": "Bid/Pursuit Sprint", "xp": 100, "advisor": "Chief of Staff", "advice": "Isio's growth depends on this pursuit. Deliver excellence, as always."},
+    {"name": "Night Owl Session (>8pm)", "xp": 50, "advisor": "Diary Secretary", "advice": "I've logged your overtime. Use this quiet time to get ahead of the curve."},
+    {"name": "Gov/Client Research", "xp": 40, "advisor": "Chief of Staff", "advice": "Information is the primary currency of a bid manager."}
+]
 
-tabs = st.tabs(["🏛️ Boardroom", "🚨 Critical Path", "⚡ Daily Ops", "💼 Projects", "🥂 M&A", "👴 Stakeholders"])
+m_a_dating = [
+    {"name": "Active Networking (Apps)", "xp": 30, "advisor": "Head of M&A", "advice": "Don't be shy, handsome. It's a numbers game—keep the pipeline full."},
+    {"name": "Style & Grooming", "xp": 40, "advisor": "Head of M&A", "advice": "Packaging is 50% of the sale. I want you looking like a Partner."},
+    {"name": "Try a new recipe", "xp": 50, "advisor": "Performance Coach", "advice": "Culinary skill is a top-tier asset. Surprise your future merger with something bold!"},
+    {"name": "The Date (First Round)", "xp": 100, "advisor": "Head of M&A", "advice": "Initial due diligence. Assess her values, not just her LinkedIn."},
+    {"name": "Central London Venture", "xp": 150, "advisor": "Head of M&A", "advice": "Expanding the search radius. Let's find a spot in Marylebone and show them who you are."}
+]
 
-with tabs[0]:
-    st.header("Board of Directors")
-    cols = st.columns(5)
-    for i, (name, info) in enumerate(ADVISORS.items()):
-        with cols[i]:
-            st.image(info['img'], use_container_width=True)
-            st.button(f"Briefing: {name}", key=f"btn_{name}")
-            st.info(info['directive'])
-
-# [Remaining tab rendering using render_task_section]
+stakeholders = [
+    {"name": "Arsenal Match Engagement", "xp": 25, "advisor": "Diary Secretary", "advice": "Morale is a vital metric. Enjoy the game, but stay disciplined."},
+    {"name": "Weekly Wellness Call (Dad)", "xp":
