@@ -12,9 +12,10 @@ def get_gsheet(sheet_name="Sheet1"):
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     else:
+        # Fallback for local testing
         creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
     client = gspread.authorize(creds)
-    # Using your existing Spreadsheet ID
+    # Your specific Spreadsheet ID
     SPREADSHEET_ID = "1wZSAKq283Q1xf9FAeMBIw403lpavRRAVLKNntc950Og" 
     return client.open_by_key(SPREADSHEET_ID).worksheet(sheet_name)
 
@@ -22,7 +23,7 @@ def load_game_data():
     try:
         sheet = get_gsheet("Sheet1")
         row = sheet.row_values(2)
-        # B:XP, C:RP, D:Streak, E:SocialRep, F:Level
+        # Columns in Sheet: A:Date, B:XP, C:RP, D:Streak, E:SocialRep, F:Level
         return {
             "xp": int(row[1]), 
             "rp": int(row[2]), 
@@ -54,7 +55,7 @@ def update_stat(stat, amount, is_urgent=False):
     st.session_state.game_data[stat] += final_amount
     
     # LEVEL UP LOGIC
-    # Formula: Level 1 needs 500xp, Level 2 needs 1000xp, etc.
+    # Formula: Each level requires 500 XP
     xp_needed_for_next = st.session_state.game_data['level'] * 500
     if st.session_state.game_data['xp'] >= xp_needed_for_next:
         st.session_state.game_data['level'] += 1
@@ -80,7 +81,8 @@ with st.sidebar:
     current_xp = st.session_state.game_data['xp']
     next_level_xp = st.session_state.game_data['level'] * 500
     prev_level_xp = (st.session_state.game_data['level'] - 1) * 500
-    # Guard against division by zero
+    
+    # Calculate progress %
     progress_range = next_level_xp - prev_level_xp
     progress_current = current_xp - prev_level_xp
     progress_perc = min(max(progress_current / progress_range, 0.0), 1.0)
@@ -103,56 +105,4 @@ st.write(f"Welcome back, MD. Today is {date.today().strftime('%A, %d %B')}.")
 
 tabs = st.tabs(["⚡ Daily Ops", "💼 Isio & Projects", "🥂 M&A (Dating)", "👴 Stakeholders", "📊 Analytics"])
 
-# TAB 1: DAILY OPS (Maintenance & Wellness)
-with tabs[0]:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("### 🧘 Operational Readiness")
-        if st.button("Morning Meditation (10m)"): update_stat('xp', 15)
-        if st.button("Flexibility & Stretching (15m)"): update_stat('xp', 15)
-        if st.button("Reading (Financial/Journalism)"): update_stat('xp', 35)
-        if st.button("Nutritional Meal Prep"): update_stat('xp', 40)
-    with c2:
-        st.markdown("### 🧹 Property Management")
-        if st.button("Laundry Cycle"): update_stat('xp', 20)
-        if st.button("Kitchen/Lounge Reset"): update_stat('xp', 25)
-        if st.button("Bathroom Maintenance"): update_stat('xp', 30)
-
-# TAB 2: ISIO & CAPITAL PROJECTS
-with tabs[1]:
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("### 🚀 Isio Pursuit Management")
-        if st.button("High-Intensity Bid/Pursuit Work"): update_stat('rp', 100)
-        if st.button("Night Owl Strategy Session (After 8pm)"): update_stat('rp', 50)
-        if st.button("Client Research / Governance"): update_stat('rp', 40)
-    with col2:
-        st.markdown("### ⚖️ Legal & Credit (The CCJ)")
-        st.caption("Critical Path: Clearing the CCJ")
-        if st.button("ID Creditor / Gather Evidence"): update_stat('xp', 150, is_urgent=True)
-        if st.button("Submit N443/Legal Filing"): update_stat('xp', 250, is_urgent=True)
-
-# TAB 3: M&A (DATING & GROWTH)
-with tabs[2]:
-    st.info("Strategic Objective: Secure a long-term partnership (Wife).")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("### 🔍 Market Sourcing")
-        if st.button("Active Networking (Apps/Events)"): update_stat('xp', 30)
-        if st.button("First Round Interview (The Date)"): update_stat('xp', 100)
-    with c2:
-        st.markdown("### 🗺️ Market Expansion")
-        if st.button("Central London Venture (Out of Harrow)"): update_stat('xp', 150)
-        if st.button("Personal Presentation (Style/Grooming)"): update_stat('xp', 40)
-
-# TAB 4: STAKEHOLDERS (DAD & FRIENDS)
-with tabs[3]:
-    st.markdown("### 👴 Family Equity (Dad)")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("CR-V Market Analysis/Logistics"): update_stat('xp', 50)
-        if st.button("Quality Visit to Hungerford"): update_stat('xp', 150)
-    with c2:
-        if st.button("Weekly Wellness Check-in Call"): update_stat('xp', 40)
-    
-    st
+# TAB 1
