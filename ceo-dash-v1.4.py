@@ -7,12 +7,20 @@ import os
 # --- 1. CORE CONFIG ---
 st.set_page_config(page_title="Hungerford Holdings MD", layout="wide")
 
-# --- 2. IMAGE PATH FAIL-SAFE ---
-def get_image(path):
-    """Ensures images load correctly or provides a placeholder."""
+# --- 2. IMAGE RENDERING ENGINE (Fail-Safe) ---
+def render_advisor_img(name, path, width=100):
+    """Renders the portrait if exists, else an executive icon."""
+    icons = {
+        "Chief of Staff": "🎖️",
+        "Diary Secretary": "📅",
+        "Head of M&A": "🥂",
+        "Portfolio Manager": "📈",
+        "Performance Coach": "🏃"
+    }
     if os.path.exists(path):
-        return path
-    return None # Streamlit will handle None gracefully or we can use a URL placeholder
+        st.image(path, width=width)
+    else:
+        st.markdown(f"<h1 style='text-align: center;'>{icons.get(name, '👤')}</h1>", unsafe_content_type=True)
 
 # --- 3. THE SOVEREIGN ENGINE ---
 def get_sheets():
@@ -61,48 +69,41 @@ def update_permanent(stat_updates, task_id):
         st.session_state.game_data[stat] += amount
         if stat == 'xp': st.session_state.game_data['credits'] += int(amount * 0.1)
         if stat == 'rp': st.session_state.game_data['credits'] += int(amount * 0.2)
-    
     today_str = str(date.today())
     task_sheet.append_row([today_str, task_id])
     g = st.session_state.game_data
-    # Updating range to K2 to include Influence metrics
     sheet1.update('B2:L2', [[g['xp'], g['rp'], g['streak'], g['level'], g['credits'], g['affinity'], 
                              g['golf_best'], g['chase_bal'], g['santander_bal'], 
                              g['jacq_influence'], g['mattw_influence']]])
     st.rerun()
 
-# --- 4. ADVISOR & STAKEHOLDER PROFILES ---
+# --- 4. ADVISOR PROFILES ---
 ADVISORS = {
-    "Chief of Staff": {"img": get_image("assets/cos.png"), "directive": "Jack, Louise's mat-leave is a power vacuum. The CMgr pitch is your claim to HQ leadership."},
-    "Diary Secretary": {"img": get_image("assets/diary.png"), "directive": "The 'Harrow Reset' (Mould/Clothes) must be finalized tonight to ensure a zero-friction return to Isio."},
-    "Head of M&A": {"img": get_image("assets/m_and_a.png"), "directive": "Dating is due diligence. Use the Hertsmere round to gather high-value visual assets for Hinge."},
-    "Portfolio Manager": {"img": get_image("assets/portfolio.png"), "directive": "The CCJ strike on Jan 2nd is our primary audit goal. Ensure liquidity is moved to Chase."},
-    "Performance Coach": {"img": get_image("assets/coach.png"), "directive": "Football recovery tonight; Golf performance tomorrow. Every stroke under 100 is an XP dividend!"}
+    "Chief of Staff": {"path": "assets/cos.png", "directive": "Jack, Louise's mat-leave is a power vacuum. The CMgr pitch is your claim to HQ leadership."},
+    "Diary Secretary": {"path": "assets/diary.png", "directive": "The 'Harrow Reset' (Mould/Clothes) must be finalized tonight for a zero-friction return to Isio."},
+    "Head of M&A": {"path": "assets/m_and_a.png", "directive": "Dating is due diligence. Use the Hertsmere round for candid Hinge assets."},
+    "Portfolio Manager": {"path": "assets/portfolio.png", "directive": "The CCJ strike on Jan 2 is our primary goal. Ensure funds are liquid in Chase."},
+    "Performance Coach": {"path": "assets/coach.png", "directive": "Football recovery tonight; Golf performance tomorrow. Sub-100 score is the target!"}
 }
 
-# --- 5. COMPREHENSIVE LIBRARIES ---
-DATA_DAILY = [
-    {"id": "skin_d", "name": "Skincare Routine", "xp": 10, "adv": "Chief of Staff", "msg": "Executive presence starts with the face."},
-    {"id": "supp_d", "name": "Supplement Stack", "xp": 10, "adv": "Performance Coach", "msg": "Magnesium and Zinc for muscle recovery."},
-    {"id": "stretch_d", "name": "Pre-Golf Mobility", "xp": 15, "adv": "Performance Coach", "msg": "Focus on T-spine rotation."},
-]
+# --- 5. TASK REPOSITORY (AUDITED) ---
+DATA_DAILY = [{"id": "skin_d", "name": "Skincare Routine", "xp": 10, "adv": "Chief of Staff", "msg": "Maintain the executive brand."},
+              {"id": "supp_d", "name": "Supplement Stack", "xp": 10, "adv": "Performance Coach", "msg": "Focus on recovery tonight."},
+              {"id": "stretch_d", "name": "Pre-Golf Mobility", "xp": 15, "adv": "Performance Coach", "msg": "Unlock the T-spine."}]
 
-DATA_MAINTENANCE = [
-    {"id": "mould_p", "name": "Remove Shower Mould", "xp": 50, "adv": "Diary Secretary", "msg": "Addressing deferred maintenance."},
-    {"id": "clothes_p", "name": "Bedroom Audit: Dispose Old Clothes", "xp": 80, "adv": "Diary Secretary", "msg": "Clear the legacy wardrobe."},
-    {"id": "bedroom_p", "name": "Bedroom Reorganisation", "xp": 60, "adv": "Diary Secretary", "msg": "Final recovery suite optimization."},
-]
+DATA_MAINTENANCE = [{"id": "mould_p", "name": "Remove Shower Mould", "xp": 50, "adv": "Diary Secretary", "msg": "Clear the environmental debt."},
+                    {"id": "clothes_p", "name": "Bedroom Audit: Dispose Old Clothes", "xp": 80, "adv": "Diary Secretary", "msg": "Phase 1 of Reorganisation."},
+                    {"id": "bedroom_p", "name": "Bedroom Reorganisation", "xp": 60, "adv": "Diary Secretary", "msg": "Optimize the recovery suite."}]
 
-DATA_ISIO_EB = [
-    {"id": "snib_p", "name": "SNIB (9 Jan): Exec Summary", "rp": 120, "adv": "Chief of Staff", "msg": "HQ-grade precision for Matt W."},
-    {"id": "jacq_p", "name": "Jacqueline HQ Networking", "rp": 100, "xp": 20, "adv": "Chief of Staff", "msg": "Build Influence Equity (+5 Jacqueline Influence)."},
-    {"id": "cmgr_p", "name": "CMgr Pitch (Louise)", "rp": 250, "xp": 50, "adv": "Chief of Staff", "msg": "Leadership framework for EB growth."},
-]
+DATA_FINANCE = [{"id": "ccj_p", "name": "CCJ Readiness Check", "xp": 50, "urgent": True, "adv": "Portfolio Manager", "msg": "Jan 2 Strike Readiness."},
+                {"id": "sant_p", "name": "Santander DD Audit", "xp": 60, "adv": "Portfolio Manager", "msg": "Identify legacy DDs."}]
 
-DATA_TAYLOR = [
-    {"id": "taylor_gov_p", "name": "Taylor: Governance Map", "rp": 200, "adv": "Portfolio Manager", "msg": "Appease Matt G and Vito with enterprise standards."},
-    {"id": "taylor_sync_p", "name": "Taylor: Douglas Sync", "rp": 80, "adv": "Chief of Staff", "msg": "Syncing Edinburgh with London HQ."},
-]
+DATA_ISIO = [{"id": "snib_p", "name": "SNIB (9 Jan): Exec Summary", "rp": 120, "adv": "Chief of Staff", "msg": "London HQ precision for Matt W."},
+             {"id": "jacq_p", "name": "Jacqueline HQ Networking", "rp": 100, "xp": 20, "adv": "Chief of Staff", "msg": "Build Influence Equity (+5 Jacqueline)."},
+             {"id": "cmgr_p", "name": "CMgr Pitch (Louise)", "rp": 250, "xp": 50, "adv": "Chief of Staff", "msg": "Leadership for EB growth."}]
+
+DATA_TAYLOR = [{"id": "taylor_gov_p", "name": "Taylor: Governance Map", "rp": 200, "adv": "Portfolio Manager", "msg": "Satisfy Matt G and Vito."},
+               {"id": "taylor_sync_p", "name": "Taylor: Douglas Sync", "rp": 80, "adv": "Chief of Staff", "msg": "Edinburgh alignment."}]
 
 # --- 6. RENDERER ---
 def render_command_list(task_list, grp, show_rp=False):
@@ -128,29 +129,21 @@ def render_command_list(task_list, grp, show_rp=False):
         if st.session_state.briefing_target == t_id:
             with st.container(border=True):
                 col_i, col_t = st.columns([0.2, 0.8])
-                with col_i: 
-                    img = ADVISORS[adv_name]['img']
-                    if img: st.image(img, width=100)
-                    else: st.write(f"[{adv_name}]")
+                with col_i: render_advisor_img(adv_name, ADVISORS[adv_name]['path'], width=80)
                 with col_t:
                     st.caption(f"**Briefing from {adv_name}**")
                     st.info(t['msg'])
 
-# --- 7. UI ---
+# --- 7. UI LAYOUT ---
 with st.sidebar:
     st.title("🎖️ Command Dashboard")
     xp, rp = st.session_state.game_data['xp'], st.session_state.game_data['rp']
-    
-    # XP Bar
-    st.subheader("Life Rank Progress")
+    st.subheader("Life Rank")
     st.progress(min((xp % 1000) / 1000, 1.0))
     st.caption(f"XP: {xp:,} / 1000 to Milestone")
-    
-    # RP Bar
     st.subheader("Career Standing")
     st.progress(min((rp % 1500) / 1500, 1.0))
     st.caption(f"RP: {rp:,} / 1500 to Next Standing")
-    
     st.divider()
     st.metric("Treasury Credits", f"💎 {st.session_state.game_data['credits']}")
 
@@ -159,31 +152,22 @@ tabs = st.tabs(["🏛️ Board", "🚨 Critical", "📈 Finance", "⚡ Ops", "�
 
 with tabs[0]: # Boardroom & Leadership Cabinet
     col_adv, col_cab = st.columns([0.6, 0.4])
-    
     with col_adv:
         st.subheader("👥 Executive Committee")
-        for i, (name, info) in enumerate(ADVISORS.items()):
+        for name, info in ADVISORS.items():
             c_img, c_info = st.columns([0.3, 0.7])
-            with c_img:
-                if info['img']: st.image(info['img'], width=80)
-                else: st.write(f"[{name}]")
-            with c_info:
-                st.write(f"**{name}**")
-                st.info(info['directive'])
-    
+            with c_img: render_advisor_img(name, info['path'], width=70)
+            with c_info: st.write(f"**{name}**"); st.info(info['directive'])
     with col_cab:
         st.subheader("📈 Leadership Cabinet")
-        st.write("Influence Equity with HQ Stakeholders")
         st.write(f"**Jacqueline (CMO):** {st.session_state.game_data['jacq_influence']}%")
         st.progress(st.session_state.game_data['jacq_influence'] / 100)
         st.write(f"**Matt W (Sales Director):** {st.session_state.game_data['mattw_influence']}%")
         st.progress(st.session_state.game_data['mattw_influence'] / 100)
-        st.divider()
-        st.caption("Strategic Ally: Louise (Head of Bids) - Departs Feb")
 
 with tabs[2]: # Finance
     st.header("📈 The Sovereign Treasury")
-    render_command_list([{"id": "ccj_p", "name": "CCJ Readiness Check", "xp": 50, "urgent": True, "adv": "Portfolio Manager", "msg": "Jan 2 Strike Readiness."}], "fin")
+    render_command_list(DATA_FINANCE, "fin")
     st.divider()
     chase = st.number_input("Chase Balance (£)", value=st.session_state.game_data['chase_bal'])
     sant = st.number_input("Santander Balance (£)", value=st.session_state.game_data['santander_bal'])
@@ -191,7 +175,7 @@ with tabs[2]: # Finance
         st.session_state.game_data['chase_bal'], st.session_state.game_data['santander_bal'] = chase, sant
         update_permanent({}, "ledger_sync")
 
-with tabs[5]: render_command_list(DATA_ISIO_EB, "isio_p", show_rp=True)
+with tabs[5]: render_command_list(DATA_ISIO, "isio_p", show_rp=True)
 with tabs[6]: render_command_list(DATA_TAYLOR, "isio_t", show_rp=True)
 
 with tabs[8]: # Stakeholders & Golf
@@ -203,8 +187,8 @@ with tabs[8]: # Stakeholders & Golf
         total_xp = 40 + max(0, 100 - score)
         if st.button(f"Log Round: {score} (+{total_xp} XP)"):
             update_permanent({'xp': total_xp}, "golf_d")
-    with col_s:
-        render_command_list([{"id": "hotel_p", "name": "Book Wedding Hotel", "xp": 50, "adv": "Diary Secretary", "msg": "Secure the room."}], "stake")
+    with col_s: render_command_list([{"id": "hotel_p", "name": "Book Wedding Hotel", "xp": 50, "adv": "Diary Secretary", "msg": "Secure the room."}], "stake")
 
 with tabs[3]: render_command_list(DATA_DAILY, "daily")
 with tabs[4]: render_command_list(DATA_MAINTENANCE, "maint")
+with tabs[7]: render_command_list([{"id": "hinge_p", "name": "Hinge Photo Audit", "xp": 100, "adv": "Head of M&A", "msg": "Archives + Golf candid shots."}], "ma")
