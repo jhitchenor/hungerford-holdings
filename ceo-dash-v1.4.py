@@ -6,7 +6,7 @@ from datetime import datetime, date
 # --- 1. CORE CONFIG ---
 st.set_page_config(page_title="Hungerford Holdings MD", layout="wide")
 
-# --- 2. DATA PERSISTENCE & MIGRATION ---
+# --- 2. DATA PERSISTENCE ---
 def get_sheets():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     try:
@@ -19,7 +19,7 @@ def get_sheets():
         client = gspread.authorize(creds)
         spreadsheet = client.open_by_key("1wZSAKq283Q1xf9FAeMBIw403lpavRRAVLKNntc950Og")
         return spreadsheet.worksheet("Sheet1"), spreadsheet.worksheet("Completed_Tasks")
-    except Exception as e:
+    except:
         return None, None
 
 def load_data():
@@ -35,7 +35,6 @@ def load_data():
         }
     except:
         stats = {"xp": 505, "rp": 0, "streak": 0, "level": 2, "credits": 50, "affinity": 50, "golf_best": 95, "chase_bal": 0.0, "santander_bal": 0.0}
-    
     try: completed = task_sheet.get_all_records()
     except: completed = []
     return stats, completed
@@ -47,11 +46,7 @@ if 'game_data' not in st.session_state:
     st.session_state.briefing_target = None
 
 def update_permanent(stat_updates, task_id):
-    """
-    stat_updates: dict of {stat_name: amount}
-    """
     sheet1, task_sheet = get_sheets()
-    
     for stat, amount in stat_updates.items():
         st.session_state.game_data[stat] += amount
         if stat == 'xp': st.session_state.game_data['credits'] += int(amount * 0.1)
@@ -59,168 +54,164 @@ def update_permanent(stat_updates, task_id):
     
     today_str = str(date.today())
     task_sheet.append_row([today_str, task_id])
-    
     g = st.session_state.game_data
     sheet1.update('B2:J2', [[g['xp'], g['rp'], g['streak'], g['level'], g['credits'], g['affinity'], g['golf_best'], g['chase_bal'], g['santander_bal']]])
     st.rerun()
 
-# --- 3. ADVISOR PROFILES ---
-ADVISORS = {
-    "Chief of Staff": {"img": "assets/cos.png", "directive": "Jack, focusing on RP via Taylor AI is the fastest route to Associate Director. Louise's leave in Feb is your window."},
-    "Diary Secretary": {"img": "assets/diary.png", "directive": "HQ Reset: Clear the mould and the old clothes. A cluttered environment is a cluttered bid strategy."},
-    "Head of M&A": {"img": "assets/m_and_a.png", "directive": "Hertsmere networking with Shivam is key. Get those photos for the Hinge audit tomorrow evening."},
-    "Portfolio Manager": {"img": "assets/portfolio.png", "directive": "The Santander account is a legacy risk. Audit the Direct Debits tonight and prepare for liquidation."},
-    "Performance Coach": {"img": "assets/coach.png", "directive": "Golf Formula: 40 XP Base. Every stroke under 100 adds 1 XP. Focus on the Pendulum Putt!"}
-}
+# --- 3. TASK LIBRARIES ---
 
-# --- 4. COMPREHENSIVE TASK LIBRARIES ---
-
-# OPS (XP Focus)
+# OPS (XP Focused)
 DATA_DAILY = [
     {"id": "skin_d", "name": "Skincare Routine", "xp": 10},
     {"id": "supp_d", "name": "Supplement Stack", "xp": 10},
     {"id": "stretch_d", "name": "Pre-Golf Mobility", "xp": 15},
-    {"id": "read_d", "name": "Read for 30 mins", "xp": 20},
-    {"id": "putt_d", "name": "Putting Practice (20 reps)", "xp": 15}
+    {"id": "read_d", "name": "Read for 30 mins", "xp": 20}
 ]
 
-# MAINTENANCE (XP Focus)
+# MAINTENANCE (XP Focused)
 DATA_MAINTENANCE = [
     {"id": "kitchen_d", "name": "Clean Kitchen", "xp": 25},
     {"id": "lounge_d", "name": "Clean Lounge", "xp": 25},
     {"id": "iron_p", "name": "Iron 5 Work Shirts", "xp": 40},
-    {"id": "mould_p", "name": "Remove Shower Mould", "xp": 50, "msg": "Clear the environmental debt."},
-    {"id": "clothes_p", "name": "Bedroom Audit: Dispose Old Clothes", "xp": 80, "msg": "Phase 1 of Reorganisation."},
-    {"id": "bedroom_p", "name": "Bedroom Reorganisation", "xp": 60, "msg": "Phase 2: Optimized recovery suite."}
+    {"id": "mould_p", "name": "Remove Shower Mould", "xp": 50},
+    {"id": "clothes_p", "name": "Bedroom Audit: Dispose Old Clothes", "xp": 80},
+    {"id": "bedroom_p", "name": "Bedroom Reorganisation", "xp": 60}
 ]
 
-# ISIO PURSUIT & TAYLOR (RP Focus)
+# FINANCE (The New Sector)
+DATA_FINANCE = [
+    {"id": "ccj_p", "name": "CCJ Readiness Check (Jan 2 Strike)", "xp": 50, "urgent": True},
+    {"id": "santander_p", "name": "Santander DD Audit", "xp": 60, "urgent": True},
+    {"id": "budget_d", "name": "Update Budget Tracker", "xp": 30}
+]
+
+# ISIO PURSUIT & TAYLOR (RP Focused)
 DATA_ISIO = [
-    {"id": "snib_p", "name": "SNIB (9 Jan): Executive Summary", "rp": 120, "xp": 10},
-    {"id": "yw_p", "name": "YW (23 Jan): Compliance Review", "rp": 80, "xp": 5},
-    {"id": "c4_p", "name": "C4 (14 Jan): Pitch Deck Prep", "rp": 100, "xp": 15},
-    {"id": "taylor_gov_p", "name": "Taylor: CDO/CTO Governance Map", "rp": 200, "xp": 30},
-    {"id": "taylor_sync_p", "name": "Taylor: Douglas (Edinburgh) Sync", "rp": 80, "xp": 10},
+    {"id": "snib_p", "name": "SNIB (9 Jan): Executive Summary", "rp": 120, "xp": 5},
+    {"id": "yw_p", "name": "YW (23 Jan): Compliance Review", "rp": 80, "xp": 0},
+    {"id": "c4_p", "name": "C4 (14 Jan): Pitch Deck Prep", "rp": 100, "xp": 10},
+    {"id": "taylor_gov_p", "name": "Taylor: CDO/CTO Governance Map", "rp": 200, "xp": 25},
+    {"id": "taylor_sync_p", "name": "Taylor: Douglas Sync", "rp": 80, "xp": 5},
     {"id": "indesign_p", "name": "InDesign License Request", "rp": 50, "xp": 10},
     {"id": "cmgr_p", "name": "Chartered Manager Pitch (Louise)", "rp": 250, "xp": 100},
 ]
 
-# M&A & STAKEHOLDERS (XP Focus)
+# M&A (XP Focus)
 DATA_MA = [
-    {"id": "hinge_p", "name": "Hinge Visual Asset Audit (10 Photos)", "xp": 100},
+    {"id": "hinge_p", "name": "Visual Asset Audit (10 Photos)", "xp": 100},
     {"id": "apps_d", "name": "Active Networking (Apps)", "xp": 30},
-    {"id": "jacq_p", "name": "Jacqueline (CMO) Networking Brief", "xp": 40, "rp": 100},
+    {"id": "jacq_p", "name": "Jacqueline (CMO) Briefing", "xp": 40, "rp": 100},
 ]
 
+# STAKEHOLDERS
 DATA_STAKEHOLDERS = [
     {"id": "hotel_p", "name": "Book Wedding Hotel (Krishan)", "xp": 50, "urgent": True},
     {"id": "dad_p", "name": "Wellness Call (Dad)", "xp": 40},
     {"id": "arsenal_d", "name": "Arsenal Match Engagement", "xp": 25},
 ]
 
-# --- 5. RENDERER ---
+# --- 4. RENDERER ---
 def render_command_list(task_list, grp):
     today = str(date.today())
     completed_ids = [r['TaskID'] for r in st.session_state.history]
-    
     for t in task_list:
         t_id = t['id']
-        # Permanence logic
         is_done_ever = t_id in completed_ids
         is_done_today = any(r['TaskID'] == t_id and r['Date'] == today for r in st.session_state.history)
-        
         if t_id.endswith("_p") and is_done_ever: continue
         done = is_done_today if t_id.endswith("_d") else is_done_ever
         
         c1, c2 = st.columns([0.85, 0.15])
         with c1:
-            # Stats string for button
-            stat_lbl = ""
-            if 'xp' in t: stat_lbl += f"+{t['xp']} XP "
-            if 'rp' in t: stat_lbl += f"+{t['rp']} RP"
-            
-            lbl = f"✅ {t['name']}" if done else f"{t['name']} ({stat_lbl})"
+            xp_val, rp_val = t.get('xp', 0), t.get('rp', 0)
+            lbl = f"✅ {t['name']}" if done else f"{t['name']} (+{xp_val} XP / +{rp_val} RP)"
             if st.button(lbl, key=f"btn_{t_id}_{grp}", use_container_width=True, disabled=done):
-                updates = {}
-                if 'xp' in t: updates['xp'] = t['xp']
-                if 'rp' in t: updates['rp'] = t['rp']
-                update_permanent(updates, t_id)
+                update_permanent({'xp': xp_val, 'rp': rp_val}, t_id)
         with c2:
             if st.button("💬", key=f"c_{t_id}_{grp}", use_container_width=True):
                 st.session_state.briefing_target = t_id
                 st.rerun()
         if st.session_state.briefing_target == t_id:
             with st.container(border=True):
-                st.info(t.get('msg', "Advisors monitoring active."))
+                st.info(t.get('msg', "Advisor monitoring active."))
 
-# --- 6. MAIN UI ---
+# --- 5. UI SIDEBAR ---
 with st.sidebar:
-    st.title(f"Level {st.session_state.game_data['level']}")
-    xp = st.session_state.game_data['xp']
+    st.title("🎖️ Command Dashboard")
+    xp, rp = st.session_state.game_data['xp'], st.session_state.game_data['rp']
+    
+    # XP PROGRESS (Life)
     titles = [(0, "Junior Associate"), (1000, "Senior Analyst"), (2500, "Associate Director"), (5000, "Managing Director")]
     rank = next(title for threshold, title in reversed(titles) if xp >= threshold)
-    st.subheader(rank)
+    st.subheader(f"Life Rank: {rank}")
+    st.progress(min((xp % 1000) / 1000, 1.0))
+    st.caption(f"XP: {xp:,} / 1000 to Next Milestones")
     
-    st.metric("Life XP", f"{xp:,}")
-    st.metric("Career RP", f"{st.session_state.game_data['rp']:,}")
-    st.metric("Credits", f"💎 {st.session_state.game_data['credits']}")
-    st.divider()
-    st.write("Relationship Affinity")
-    st.progress(st.session_state.game_data['affinity'] / 100)
+    # RP PROGRESS (Career)
+    career_titles = [(0, "Grade C"), (1500, "Grade B"), (3000, "Grade A (Principal)"), (5000, "Director Standing")]
+    c_rank = next(title for threshold, title in reversed(career_titles) if rp >= threshold)
+    st.subheader(f"Career Standing: {c_rank}")
+    st.progress(min((rp % 1500) / 1500, 1.0))
+    st.caption(f"RP: {rp:,} / 1500 to Next Standing")
+    
+    st.metric("Treasury Credits", f"💎 {st.session_state.game_data['credits']}")
 
+# --- 6. MAIN UI ---
 st.title("🏛️ Hungerford Holdings Command")
-tabs = st.tabs(["🏛️ Board", "🚨 Critical", "⚡ Ops", "🧹 Maintenance", "💼 Isio Pursuit", "🧪 Taylor Lab", "🥂 Growth", "🥂 M&A", "👴 Stakeholders"])
+tabs = st.tabs(["🏛️ Board", "🚨 Critical", "📈 Finance", "⚡ Ops", "🧹 Maintenance", "💼 Isio Pursuit", "🧪 Taylor Lab", "🥂 M&A", "👴 Stakeholders"])
 
 with tabs[0]: # Boardroom
     cols = st.columns(5)
-    for i, (name, info) in enumerate(ADVISORS.items()):
+    directives = [
+        ("Chief of Staff", "SNIB Jan 9 is the wall. London HQ proximity to Jacqueline is your advantage."),
+        ("Diary Secretary", "Wedding Hotel booking is non-negotiable for tonight. Logistics first."),
+        ("Head of M&A", "Get candid golf shots tomorrow. We need to refresh the Hinge asset pool."),
+        ("Portfolio Manager", "The CCJ strike on Jan 2nd will unlock significant life equity. Be ready."),
+        ("Performance Coach", "40 XP Base for golf + bonus for sub-100. Fight for every stroke!")
+    ]
+    for i, (name, text) in enumerate(directives):
         with cols[i]:
-            st.image(info['img'], use_container_width=True)
             st.caption(f"**{name}**")
-            st.info(info['directive'])
+            st.info(text)
 
 with tabs[1]: # Critical Path
-    st.error("### 🚨 Master Objectives")
-    all_t = DATA_DAILY + DATA_MAINTENANCE + DATA_ISIO + DATA_MA + DATA_STAKEHOLDERS
+    st.error("### 🚨 Urgent Master Objectives")
+    all_t = DATA_DAILY + DATA_MAINTENANCE + DATA_FINANCE + DATA_ISIO + DATA_MA + DATA_STAKEHOLDERS
     crit = [t for t in all_t if t.get('urgent') or t.get('xp', 0) >= 100 or t.get('rp', 0) >= 150]
     render_command_list(crit, "crit")
 
-with tabs[4]: # Pursuit
-    st.header("💼 Isio Pursuit Pipeline")
-    render_command_list(DATA_ISIO, "isio")
-
-with tabs[8]: # Stakeholders & Finance
-    st.header("👴 Stakeholder Management & Finance")
+with tabs[2]: # Finance
+    st.header("📈 The Sovereign Treasury")
     col_l, col_r = st.columns(2)
     with col_l:
+        st.subheader("Debt & Liquidity Management")
+        render_command_list(DATA_FINANCE, "fin")
+    with col_r:
+        st.subheader("Ledger Sync")
+        chase = st.number_input("Chase Balance (£)", value=st.session_state.game_data['chase_bal'])
+        sant = st.number_input("Santander Balance (£)", value=st.session_state.game_data['santander_bal'])
+        if st.button("Sync Ledger"):
+            st.session_state.game_data['chase_bal'], st.session_state.game_data['santander_bal'] = chase, sant
+            update_permanent({}, "ledger_sync")
+
+with tabs[4]: render_command_list(DATA_MAINTENANCE, "maint")
+with tabs[5]: render_command_list([t for t in DATA_ISIO if "taylor" not in t['id']], "isio")
+with tabs[6]: render_command_list([t for t in DATA_ISIO if "taylor" in t['id']], "taylor")
+
+with tabs[8]: # Stakeholders & Golf
+    st.header("👴 Stakeholder Management")
+    col_g, col_s = st.columns([0.6, 0.4])
+    with col_g:
         st.subheader("⛳ Hertsmere Performance Center")
         if "golf_d" not in [r['TaskID'] for r in st.session_state.history if r['Date'] == str(date.today())]:
-            score = st.number_input("Enter Score for Round with Shivam:", 70, 120, 95)
-            # THE CORRECTED GOLF LOGIC
-            bonus = max(0, 100 - score)
-            total_xp = 40 + bonus
+            score = st.number_input("Enter Score:", 70, 120, 95)
+            total_xp = 40 + max(0, 100 - score)
             if st.button(f"Log Round: {score} (+{total_xp} XP)"):
                 update_permanent({'xp': total_xp}, "golf_d")
                 st.session_state.game_data['golf_best'] = min(score, st.session_state.game_data['golf_best'])
-        else: st.success(f"✅ Hertsmere Round Logged. Best: {st.session_state.game_data['golf_best']}")
-    
-    with col_r:
-        st.subheader("💰 The Treasury Ledger")
-        
+        else: st.success(f"✅ Round Logged. PB: {st.session_state.game_data['golf_best']}")
+    with col_s:
+        render_command_list(DATA_STAKEHOLDERS, "stake")
 
-[Image of a personal finance dashboard]
-
-        chase = st.number_input("Chase Balance (£):", value=st.session_state.game_data['chase_bal'])
-        sant = st.number_input("Santander Balance (£):", value=st.session_state.game_data['santander_bal'])
-        if st.button("Update Treasury Ledger"):
-            st.session_state.game_data['chase_bal'] = chase
-            st.session_state.game_data['santander_bal'] = sant
-            update_permanent({}, "ledger_sync") # Just to trigger a save
-    
-    render_command_list(DATA_STAKEHOLDERS, "stake")
-
-with tabs[2]: render_command_list(DATA_DAILY, "daily")
-with tabs[3]: render_command_list(DATA_MAINTENANCE, "maint")
-with tabs[5]: render_command_list([t for t in DATA_ISIO if "taylor" in t['id']], "taylor")
-with tabs[6]: render_command_list([t for t in DATA_ISIO if "cmgr" in t['id'] or "indesign" in t['id']], "growth")
+with tabs[3]: render_command_list(DATA_DAILY, "daily")
 with tabs[7]: render_command_list(DATA_MA, "ma")
