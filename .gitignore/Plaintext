@@ -1,0 +1,7 @@
+# Hungerford Holdings Privacy Filter
+.streamlit/
+secrets.toml
+your_key_file.json
+credentials.json
+__pycache__/
+*.pyc

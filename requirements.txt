@@ -1,2 +1,7 @@
+streamlit
 gspread
 oauth2client
+google-generativeai
+google-api-python-client
+pandas
+plotly
