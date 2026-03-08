@@ -10,17 +10,34 @@ from oauth2client.service_account import ServiceAccountCredentials
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-1.5-flash')
 
+# --- 1. CLOUD-AWARE AUTHENTICATION ---
 def get_google_sheets():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
+    
+    # Check if we are running in the cloud (Streamlit Secrets)
+    if "gcp_service_account" in st.secrets:
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        # Fix formatting of the private key for the cloud environment
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    else:
+        # Fallback to local file for home PC usage
+        creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
+        
     client = gspread.authorize(creds)
+    # Ensure this matches your ACTUAL spreadsheet name exactly
     return client.open("Hungerford_Holdings_Data")
 
 def get_calendar_service():
-    # Note: Requires a credentials.json file from Google Cloud Console
-    # For this implementation, we use service account logic
     scope = ['https://www.googleapis.com/auth/calendar']
-    creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
+    
+    if "gcp_service_account" in st.secrets:
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    else:
+        creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
+        
     return build('calendar', 'v3', credentials=creds)
 
 # --- 2. ADVISOR BRAIN (Gemini Integration) ---
