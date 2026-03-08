@@ -11,21 +11,30 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 1. CLOUD-AWARE AUTHENTICATION ---
+from google.oauth2 import service_account
+
 def get_google_sheets():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     
-    # Check if we are running in the cloud (Streamlit Secrets)
     if "gcp_service_account" in st.secrets:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        # Fix formatting of the private key for the cloud environment
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        # 1. Convert secrets to a standard dictionary
+        creds_info = dict(st.secrets["gcp_service_account"])
+        
+        # 2. THE FIX: Ensure the private key is a clean string with actual newlines
+        # We strip extra quotes and handle both escaped and literal newlines
+        raw_key = creds_info["private_key"]
+        if raw_key.startswith('"') and raw_key.endswith('"'):
+            raw_key = raw_key[1:-1]
+        
+        creds_info["private_key"] = raw_key.replace("\\n", "\n")
+        
+        # 3. Use the modern google-auth library
+        creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scope)
     else:
-        # Fallback to local file for home PC usage
-        creds = ServiceAccountCredentials.from_json_keyfile_name("your_key_file.json", scope)
+        # Local fallback
+        creds = service_account.Credentials.from_service_account_file("your_key_file.json", scopes=scope)
         
     client = gspread.authorize(creds)
-    # Ensure this matches your ACTUAL spreadsheet name exactly
     return client.open("Hungerford_Holdings_Data")
 
 def get_calendar_service():
